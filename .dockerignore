@@ -1,0 +1,17 @@
+# Build context exclusions - keeps the Docker image small and reproducible.
+.git
+.gitignore
+.github
+.idea
+.vscode
+target/*
+!target/*.jar
+docs
+reports
+infra
+**/surefire-reports
+**/failsafe-reports
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore

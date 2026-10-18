@@ -1,0 +1,81 @@
+# =============================================================================
+#  healthcheck.yml - independent verification playbook.
+#
+#  Deliberately separate from deployment: it answers only one question, "is the
+#  estate healthy right now?", and is therefore safe to run on a schedule from
+#  Jenkins or cron without any risk of mutating the nodes.
+#
+#    ansible-playbook -i inventory/hosts.ini playbooks/healthcheck.yml
+# =============================================================================
+
+- name: Verify the health of every CRFD node
+  hosts: crfd
+  become: true
+  gather_facts: false
+  order: sorted
+  any_errors_fatal: false
+  ignore_unreachable: false
+
+  tasks:
+    - name: Probe the application health endpoint
+      ansible.builtin.uri:
+        url: "http://{{ crfd_probe_host | default('localhost') }}:{{ app_port }}{{ app_health_path }}"
+        return_content: true
+        status_code: 200
+        timeout: 10
+      register: node_health
+      until: node_health is succeeded and 'UP' in (node_health.content | default(''))
+      retries: 5
+      delay: 3
+      changed_when: false
+
+    - name: Record the health payload
+      ansible.builtin.set_fact:
+        node_status: "{{ (node_health.json | default({})).get('status', 'UNKNOWN') }}"
+        node_version: "{{ (node_health.json | default({})).get('version', 'unknown') }}"
+
+    # Readiness, not perfection. A node reporting DEGRADED is still serving
+    # traffic, and the readiness endpoint deliberately answers 200 for it. Only
+    # DOWN means the node cannot serve. Failing a node for a business-metric dip
+    # is the mistake the two-endpoint split exists to prevent.
+    - name: Declare the node unhealthy and stop
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} reports status={{ node_status }};
+          a serving node must report UP or DEGRADED
+      when: node_status not in ['UP', 'DEGRADED']
+
+    - name: Probe the separate business-SLO gate for the record
+      ansible.builtin.uri:
+        url: "http://{{ crfd_probe_host | default('localhost') }}:{{ app_port }}/api/v1/health/slo"
+        return_content: true
+        status_code: [200, 503]
+        timeout: 10
+      register: node_slo
+      changed_when: false
+      failed_when: false
+
+    - name: Record the SLO verdict
+      ansible.builtin.set_fact:
+        node_slo_status: "{{ (node_slo.json | default({})).get('status', 'UNKNOWN') }}"
+        node_slo_rate: "{{ (node_slo.json | default({})).get('pipelineSuccessRate', 'n/a') }}"
+
+    - name: Confirm the container is actually running
+      community.docker.docker_container_info:
+        name: "{{ app_container_name }}"
+      register: hc_container
+
+    - name: Assert the container is up
+      ansible.builtin.assert:
+        that:
+          - hc_container.exists
+          - hc_container.container.State.Running
+        success_msg: "{{ inventory_hostname }}: container running, app UP, version {{ node_version }}"
+        fail_msg: "{{ inventory_hostname }}: container is not running"
+
+    - name: Report a concise health line per node
+      ansible.builtin.debug:
+        msg: >-
+          HEALTH {{ inventory_hostname }} -> status={{ node_status }}
+          version={{ node_version }} container=running
+          slo={{ node_slo_status }} (successRate={{ node_slo_rate }})

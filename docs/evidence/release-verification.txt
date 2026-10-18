@@ -1,0 +1,219 @@
+================================================================================
+ RELEASE VERIFICATION - CRFD content recommendation feedback dashboard 1.0.0
+================================================================================
+
+ date       : 2026-10-18 19:16 +05:30
+ candidate  : release/v1.0.0 at 85d31a3, the tip when the run was made
+              "fix(CRFD-117b): mint EVT- keys in the documented shape"
+              v1.0.0 was cut at this branch's later tip, repairs included
+ host       : Windows 11, Docker Desktop, engine 29.7.2 (linux containers)
+ toolchain  : OpenJDK 21.0.12.1 LTS, Apache Maven 3.9.16 (wrapper)
+ image      : crfd:1.0.0  sha256:ce0912682d08  401 MB
+              built from the source at 85d31a3; the later release commits change
+              documentation only, so this is the image the tag ships
+ container  : crfd-app    b803a6682272
+              network crfd-selenium-net, -p 18080:8080,
+              volume crfd-data:/app/crfd-data, healthcheck GET /api/v1/health
+
+ This file records the release candidate being put through the same three gates
+ the Jenkins pipeline runs, in the same order. It is the artefact behind the
+ claim that v1.0.0 points at a state that was *verified*, and not merely at a
+ state that was finished. It is also the reason the tag moved: verification
+ found a real defect, CRFD-117b, and the tag is cut only after the repair.
+
+--------------------------------------------------------------------------------
+ GATE 1/3 - build and unit + API tests
+--------------------------------------------------------------------------------
+
+ $ .\mvnw -B clean package
+
+ [INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- AlertServiceTest
+ [INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- EventServiceTest
+ [INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0  -- EventApiTest
+ [INFO] Tests run: 32, Failures: 0, Errors: 0, Skipped: 0
+ [INFO] Building jar: target\content-recommendation-feedback-dashboard.jar
+ [INFO] BUILD SUCCESS
+
+--------------------------------------------------------------------------------
+ GATE 2/3 - smoke test against the built container
+--------------------------------------------------------------------------------
+
+ $ docker build -t crfd:1.0.0 -t crfd:latest .
+ $ docker rm -f crfd-app
+ $ docker run -d --name crfd-app --network crfd-selenium-net -p 18080:8080 \
+     -v crfd-data:/app/crfd-data \
+     -e CRFD_ENVIRONMENT=docker -e CRFD_SIMULATION_ENABLED=true \
+     -e CRFD_SEED_ON_STARTUP=true --restart unless-stopped crfd:1.0.0
+ b803a668227281e0d01fd3789a13000b7447bfddfbb496d129d2817120db650f
+ ... healthy after 15s
+
+ $ powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1 -BaseUrl http://localhost:18080
+
+ == 1/7 health
+    PASS  readiness endpoint reports a healthy database
+    PASS  status reported as DEGRADED (SLO breached: True)
+
+ == 2/7 ingest a feedback event
+    PASS  event accepted (id EVT-F849AE11)
+
+ == 3/7 searchable dashboard
+    PASS  search finds the ingested item
+
+ == 4/7 summary indicators
+    PASS  summary exposes totalEvents (118)
+    PASS  summary exposes clickThroughRate (0.6607)
+
+ == 5/7 status drill-down
+    PASS  drill-down returns the audit timeline (3 entries)
+    PASS  drill-down exposes the pipeline status (PROCESSED)
+
+ == 6/7 alert / exception view
+    PASS  alerts endpoint returns a page (63 alert(s))
+
+ == 7/7 dashboard UI served
+    PASS  dashboard shell is served
+    PASS  dashboard wires up the client script
+
+ result: 11 passed, 0 failed
+ SMOKE TEST PASSED
+
+ Note the id in step 2. It is the CRFD-117b repair visible in a real run: the
+ key is EVT- plus eight uppercase hex characters, the shape docs/05 documents.
+ Before the repair the same line printed EVT-B1CB5C50-F67.
+
+ Note also step 1. The status is DEGRADED and /health still answered 200: on
+ this host the pipeline success rate sits just under the 0.95 objective, which
+ is a business metric and does not decide whether the node can serve traffic.
+ The SLO gate at /api/v1/health/slo is the endpoint that reports the breach.
+ This is the CRFD-105 correction working as designed.
+
+--------------------------------------------------------------------------------
+ GATE 3/3 - Selenium journeys against the built container
+--------------------------------------------------------------------------------
+
+ $ $env:SELENIUM_REMOTE_URL = "http://localhost:4444/wd/hub"
+ $ .\mvnw -B -P selenium failsafe:integration-test failsafe:verify `
+     "-Dselenium.baseUrl=http://crfd-app:8080" `
+     "-Dselenium.headless=true" "-Dselenium.browser=chrome"
+
+ [INFO] Running com.crfd.dashboard.selenium.DashboardJourneyIT
+ [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.86 s
+ [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+ [INFO] BUILD SUCCESS
+
+ The five journeys (J1 ingest, J2 lifecycle, J3 search and facets, J4 alert
+ acknowledgement, J5 threshold edit) each pass against the containerised Chrome
+ at crfd-selenium:4444, driving the application container by its network name.
+
+================================================================================
+ WHAT THIS VERIFICATION FOUND - CRFD-117b
+================================================================================
+
+ The first candidate - the tree that was tagged v1.0.0 before this run - passed
+ all three gates too. What the smoke test *printed* is what gave it away:
+
+    PASS  event accepted (id EVT-B1CB5C50-F67)
+
+ docs/05 shows "eventId": "EVT-7F3A91C4", and the same PREFIX- plus eight
+ uppercase hex characters is the shape of the ALT- and FB- keys minted for
+ alerts and explicit feedback. The generator was
+
+    return "EVT-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+
+ and a UUID's first hyphen sits at index 8, so a twelve-character slice keeps
+ it. The key had the shape of a truncated UUID rather than of a business key.
+
+ No test noticed, because every test asserted the wrong thing: that the stored
+ event could be found, or that the key starts with "EVT-". Nothing pinned the
+ shape - the same gap that let CRFD-117 through in the first place.
+
+ The contract test was written first, and observed failing against the tree
+ that had already been tagged:
+
+   $ .\mvnw -B -o test -Dtest=EventServiceTest
+
+   [ERROR] Tests run: 6, Failures: 1, Errors: 0, Skipped: 0
+   [ERROR] com.crfd.dashboard.service.EventServiceTest
+           .mintsBusinessKeyInTheDocumentedShape -- Time elapsed: 0.111 s
+     expected: "EVT-[0-9A-F]{8}"
+      but was: "EVT-B81AF717-948"
+   [ERROR]   EventServiceTest.mintsBusinessKeyInTheDocumentedShape:90
+   [INFO] BUILD FAILURE
+
+ The generator now strips the hyphens before truncating, so the key has the
+ documented shape at any length, and the test additionally asserts that the key
+ the client is handed is the key the pipeline is scheduled with. The suite went
+ from 31 tests to 32, which is why the counts that describe the shipped suite
+ read 32 while the transcript below still reads 31.
+
+ Because this was found by *release* verification rather than by a test, the
+ repair is committed on the release branch, which is what the release branch is
+ for, and the tag was re-cut afterwards.
+
+--------------------------------------------------------------------------------
+ THE SAME THREE GATES BEFORE THE REPAIR (still passing)
+--------------------------------------------------------------------------------
+
+ $ .\mvnw -B clean package
+ [INFO] Tests run: 31, Failures: 0, Errors: 0, Skipped: 0
+ [INFO] BUILD SUCCESS
+
+ $ powershell -File scripts\smoke-test.ps1 -BaseUrl http://localhost:18080
+   PASS  event accepted (id EVT-B1CB5C50-F67)
+ result: 11 passed, 0 failed / SMOKE TEST PASSED
+
+ $ .\mvnw -B -P selenium failsafe:integration-test failsafe:verify ...
+ [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+ [INFO] BUILD SUCCESS
+
+ This is the point worth keeping. A green build, a green smoke test and five
+ green journeys did not mean the released key was the documented key. The gates
+ said "the right *shape* of thing is working"; reading what they printed said
+ something different. docs/16 Part A lists the honest limits of what that
+ process can and cannot promise.
+
+--------------------------------------------------------------------------------
+ SECOND AND THIRD FINDINGS - the report checked against itself
+--------------------------------------------------------------------------------
+
+ The same pass read the report's own claims and checked them.
+
+ **A stale number.** docs/07 quoted
+
+   $ git diff --shortstat v0.1.0-mvp v1.0.0
+    57 files changed, 4931 insertions(+), 11 deletions(-)
+
+ which was measured before the report pack itself landed on the release branch,
+ and was never updated. The measured value at the tagged tree is
+
+   $ git diff --shortstat v0.1.0-mvp v1.0.0
+    98 files changed, 13087 insertions(+), 16 deletions(-)
+
+ docs/07 §4 now carries the measured value. The image size (401 MB), the
+ journey count (5) and the smoke check count (11) all verified as stated.
+
+ **Unresolved references.** CONTRIBUTING.md sent a contributor to three files
+ that do not exist in this repository - docs/18-runbook-local-setup.md,
+ docs/03-requirements-architecture-and-technology.md and
+ docs/02-agile-planning-and-devops-workflow.md. Those are the names the brief
+ *proposes*; the report this repository ships uses docs/18-local-runbook.md,
+ docs/05-api-catalogue.md and docs/02-agile-plan.md. A reference that does not
+ resolve is the cheapest kind of documentation defect and the most corrosive,
+ because it teaches the reader to stop following references. Fixed on the
+ release branch.
+
+ Re-run after the fix: all 19 distinct `docs/NN` shorthands used anywhere in the
+ report map to a file, and no `docs/...` path reference dangles.
+
+================================================================================
+ RESULT
+================================================================================
+
+ gate 1  build + 32 unit and API tests ......................... PASS
+ gate 2  11 smoke checks against the built container ........... PASS
+ gate 3  5 Selenium journeys against the built container ........ PASS
+ defects found by this verification ............................ 1 (CRFD-117b)
+ stale figures found by this verification ...................... 1 (docs/07 §4)
+ unresolved references found by this verification .............. 3 (CONTRIBUTING.md)
+
+ The candidate is accepted. v1.0.0 is the tree above plus the repairs.

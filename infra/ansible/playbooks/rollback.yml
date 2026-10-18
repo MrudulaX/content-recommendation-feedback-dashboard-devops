@@ -1,0 +1,81 @@
+# =============================================================================
+#  rollback.yml - recovery playbook.
+#
+#  Reads the release that was recorded on the node immediately before the last
+#  deployment (roles/crfd_app writes it to /etc/crfd/previous-release.txt) and
+#  redeploys it, then re-verifies health.
+#
+#    ansible-playbook -i inventory/hosts.ini playbooks/rollback.yml
+#    ansible-playbook -i inventory/hosts.ini playbooks/rollback.yml -e rollback_to=0.9.0
+#
+#  Because the crfd_app role records the *outgoing* release whenever it changes,
+#  a rollback automatically leaves the system able to roll forward again: the
+#  file now names the version we just left behind. Recovery is therefore a
+#  symmetric, repeatable operation rather than a one-shot fix.
+# =============================================================================
+
+- name: Roll the dashboard back to the last known-good release
+  hosts: appservers
+  become: true
+  gather_facts: true
+  serial: 1
+  any_errors_fatal: true
+
+  tasks:
+    - name: Read the recorded previous release from the node
+      ansible.builtin.slurp:
+        src: "{{ rollback_state_file }}"
+      register: rollback_state_raw
+      failed_when: false
+
+    - name: Fail when the node has no rollback point recorded
+      ansible.builtin.fail:
+        msg: >-
+          {{ rollback_state_file }} does not exist on {{ inventory_hostname }},
+          so there is no recorded release to return to. Pass one explicitly with
+          -e rollback_to=<tag> if you know the target version.
+      when:
+        - rollback_state_raw.content is not defined
+        - rollback_to is not defined
+
+    - name: Decide which release to roll back to
+      ansible.builtin.set_fact:
+        crfd_rollback_target: >-
+          {{ (rollback_to | default(''))
+             if (rollback_to is defined and rollback_to | length > 0)
+             else (rollback_state_raw.content | b64decode | trim) }}
+
+    - name: Report the recovery decision
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: rolling back from
+          {{ app_version }} to {{ crfd_rollback_target }}
+
+    - name: Guard against rolling back to an empty release name
+      ansible.builtin.assert:
+        that:
+          - crfd_rollback_target | length > 0
+        fail_msg: "Refusing to roll back: the target release name is empty"
+
+    - name: Redeploy the previous release
+      ansible.builtin.include_role:
+        name: crfd_app
+      vars:
+        app_version: "{{ crfd_rollback_target }}"
+
+    - name: Confirm the node is healthy again after the rollback
+      ansible.builtin.uri:
+        url: "http://{{ crfd_probe_host | default('localhost') }}:{{ app_port }}{{ app_health_path }}"
+        return_content: true
+        status_code: 200
+      register: rollback_health
+      until: rollback_health is succeeded and 'UP' in (rollback_health.content | default(''))
+      retries: 20
+      delay: 5
+      changed_when: false
+
+    - name: Report the recovered state
+      ansible.builtin.debug:
+        msg: >-
+          RECOVERED {{ inventory_hostname }} -> {{ app_image }}:{{ crfd_rollback_target }},
+          health={{ (rollback_health.json | default({})).get('status', 'UNKNOWN') }}

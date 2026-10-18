@@ -1,0 +1,52 @@
+# =============================================================================
+#  deploy.yml - release a specific version of the dashboard onto the nodes.
+#
+#    ansible-playbook -i inventory/hosts.ini playbooks/deploy.yml \
+#        -e app_version=1.0.0
+#
+#  Nodes are processed one at a time (serial: 1) so a multi-node estate keeps
+#  serving traffic while each node is replaced - the deployment is effectively
+#  rolling. A node that fails its health check stops the play before the next
+#  node is touched, which is the "failed health check blocks the rollout"
+#  behaviour required by the brief.
+# =============================================================================
+
+- name: Roll out the CRFD dashboard release
+  hosts: appservers
+  become: true
+  gather_facts: true
+  serial: "{{ deploy_serial | default(1) }}"
+  max_fail_percentage: 0
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Validate the requested release
+      ansible.builtin.assert:
+        that:
+          - app_version is defined
+          - app_version | length > 0
+        fail_msg: "Pass the release with -e app_version=<tag>"
+
+    - name: Announce the rollout step for this node
+      ansible.builtin.debug:
+        msg: "Rolling {{ inventory_hostname }} to {{ app_image }}:{{ app_version }} (node-to-node)"
+
+  roles:
+    - role: crfd_app
+      tags: [app, deploy]
+
+  post_tasks:
+    - name: Confirm the release reported by the running container
+      community.docker.docker_container_info:
+        name: "{{ app_container_name }}"
+      register: deployed_container
+
+    - name: Assert the node is running the requested release
+      ansible.builtin.assert:
+        that:
+          - deployed_container.container.Config.Image == app_image ~ ':' ~ app_version
+        success_msg: "{{ inventory_hostname }} is running {{ app_image }}:{{ app_version }}"
+        fail_msg: >-
+          {{ inventory_hostname }} is running
+          {{ deployed_container.container.Config.Image | default('nothing') }},
+          not {{ app_image }}:{{ app_version }}

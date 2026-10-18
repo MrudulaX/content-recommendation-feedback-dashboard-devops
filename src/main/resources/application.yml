@@ -1,0 +1,123 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,application/javascript,application/json
+
+spring:
+  application:
+    name: content-recommendation-feedback-dashboard
+
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./crfd-data/crfd;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      pool-name: crfd-pool
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 5000
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+        order_updates: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Content Recommendation Feedback Dashboard
+    version: @project.version@
+    description: MVP capturing recommendation feedback events with a searchable dashboard, summary indicators, status drill-down and an alert/exception view.
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    display-request-duration: true
+
+# ---------------------------------------------------------------------------
+# Application configuration - every value can be overridden by an environment
+# variable, which is what the Jenkins parameterisation and the Ansible
+# deployment rely on.
+# ---------------------------------------------------------------------------
+crfd:
+  environment: ${CRFD_ENVIRONMENT:local}
+
+  simulation:
+    enabled: ${CRFD_SIMULATION_ENABLED:true}
+    seed-on-startup: ${CRFD_SEED_ON_STARTUP:true}
+    seed-event-count: ${CRFD_SEED_EVENT_COUNT:180}
+    seed-hours-back: ${CRFD_SEED_HOURS_BACK:48}
+    max-batch: ${CRFD_MAX_BATCH:500}
+
+  processing:
+    base-latency-ms: ${CRFD_BASE_LATENCY_MS:22}
+    jitter-ms: ${CRFD_JITTER_MS:160}
+    spike-probability: ${CRFD_SPIKE_PROBABILITY:0.06}
+    spike-latency-ms: ${CRFD_SPIKE_LATENCY_MS:1350}
+    async-enabled: ${CRFD_ASYNC_ENABLED:true}
+
+  # Thresholds the pipeline and the alerting rules evaluate.
+  #
+  # Every one of them is overridable by an environment variable, so a deployment
+  # can tune its own sensitivity without a rebuild.
+  #
+  # A breach raises an exception on the queue rather than failing a request: these
+  # are quality signals, not availability ones. See docs/05 for the full list of
+  # alert codes.
+  thresholds:
+    low-confidence: ${CRFD_LOW_CONFIDENCE:0.30}
+    high-latency-ms: ${CRFD_HIGH_LATENCY_MS:500}
+    critical-latency-ms: ${CRFD_CRITICAL_LATENCY_MS:1500}
+    stale-event-hours: ${CRFD_STALE_EVENT_HOURS:24}
+    dismiss-rate-threshold: ${CRFD_DISMISS_RATE_THRESHOLD:3}
+    dismiss-window-minutes: ${CRFD_DISMISS_WINDOW_MINUTES:60}
+    low-rating-threshold: ${CRFD_LOW_RATING_THRESHOLD:2}
+    minimum-success-rate: ${CRFD_MINIMUM_SUCCESS_RATE:0.95}
+
+  metrics:
+    window-hours: ${CRFD_METRICS_WINDOW_HOURS:24}
+    top-items: ${CRFD_TOP_ITEMS:5}
+    default-granularity: ${CRFD_DEFAULT_GRANULARITY:hour}
+
+logging:
+  level:
+    root: INFO
+    com.crfd.dashboard: ${CRFD_LOG_LEVEL:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

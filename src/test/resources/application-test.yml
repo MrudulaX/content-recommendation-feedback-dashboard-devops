@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# Test profile - deterministic, in-memory, synchronous pipeline.
+# The synchronous pipeline (crfd.processing.async-enabled=false) is what makes
+# assertions on the final event status reliable instead of time-dependent.
+# ---------------------------------------------------------------------------
+spring:
+  datasource:
+    url: jdbc:h2:mem:crfd-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  h2:
+    console:
+      enabled: false
+
+crfd:
+  environment: test
+  simulation:
+    enabled: true
+    seed-on-startup: false
+    seed-event-count: 0
+    max-batch: 100
+  processing:
+    async-enabled: false
+    base-latency-ms: 1
+    jitter-ms: 2
+    spike-probability: 0
+    spike-latency-ms: 1
+  thresholds:
+    low-confidence: 0.30
+    high-latency-ms: 400
+    critical-latency-ms: 1200
+    stale-event-hours: 24
+    dismiss-rate-threshold: 2
+    dismiss-window-minutes: 60
+    low-rating-threshold: 2
+    minimum-success-rate: 0.50
+
+logging:
+  level:
+    root: WARN
+    com.crfd.dashboard: INFO

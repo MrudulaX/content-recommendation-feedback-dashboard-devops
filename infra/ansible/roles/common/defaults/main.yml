@@ -1,0 +1,8 @@
+---
+common_timezone: UTC
+common_deploy_user: crfd
+common_deploy_shell: /bin/bash
+common_packages:
+  - curl
+  - ca-certificates
+  - tzdata

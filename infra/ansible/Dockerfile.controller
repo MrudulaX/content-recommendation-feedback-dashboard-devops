@@ -1,0 +1,74 @@
+# =============================================================================
+#  Ansible controller image.
+#
+#  A pinned controller is used so that "run the playbooks" is reproducible:
+#  the same ansible-core, the same collections, the same Docker SDK - on any
+#  machine, including developer laptops that have no Python toolchain.
+#
+#    docker build -f infra/ansible/Dockerfile.controller -t crfd-ansible:latest infra/ansible
+#    docker run --rm -v "$PWD/infra/ansible:/ansible" crfd-ansible:latest \
+#           ansible-playbook -i inventory/hosts.example.ini playbooks/site.yml --check
+#
+#  There is deliberately no `-w /ansible`: the entrypoint stages the mount into
+#  a private, non-world-writable copy under /work first. See
+#  entrypoint.controller.sh for the reason.
+# =============================================================================
+FROM python:3.12-alpine
+
+LABEL org.opencontainers.image.title="CRFD Ansible controller" \
+      org.opencontainers.image.description="Pinned Ansible controller for provisioning the CRFD application nodes" \
+      org.opencontainers.image.licenses="MIT"
+
+# ssh client: the node is provisioned over SSH.
+# sshpass: the disposable demo node authenticates with a password, so the ssh
+#          connection plugin needs it. Real inventories use keys instead.
+# curl: used by the health-check tasks when a raw HTTP probe is simpler than uri.
+# `apk upgrade` first: the python:*-alpine base is periodically behind the Alpine
+# mirror, which makes the pinned base packages conflict with the -dev packages
+# installed below. Updating the base first removes that whole class of failure.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
+        bash \
+        curl \
+        git \
+        openssh-client \
+        sshpass \
+        rsync \
+        tzdata \
+        py3-pip \
+        gcc \
+        musl-dev \
+        python3-dev \
+        libffi-dev \
+        openssl-dev
+
+# Ansible + the collections the playbooks use. Versions are pinned so a rebuild
+# cannot silently change behaviour.
+RUN pip install --no-cache-dir \
+        "ansible-core==2.17.4" \
+        "docker==7.1.0" \
+        "jmespath==1.0.1"
+
+RUN ansible-galaxy collection install \
+        "community.docker:==3.10.4" \
+        "community.general:==9.5.0" \
+        "ansible.posix:==1.6.2" \
+    && rm -rf /root/.cache
+
+# Pre-approve nothing: the playbooks disable strict host-key checking for the
+# disposable demo node, and production inventories supply real keys.
+ENV ANSIBLE_HOST_KEY_CHECKING=False \
+    ANSIBLE_RETRY_FILES_ENABLED=False \
+    ANSIBLE_FORCE_COLOR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# See entrypoint.controller.sh: the mount is staged into a private copy so that
+# Ansible will actually read ansible.cfg from it.
+COPY entrypoint.controller.sh /usr/local/bin/controller-entrypoint.sh
+RUN chmod +x /usr/local/bin/controller-entrypoint.sh
+
+RUN mkdir -p /work
+WORKDIR /work
+
+ENTRYPOINT ["/usr/local/bin/controller-entrypoint.sh"]
+CMD ["ansible --version && ansible-galaxy collection list"]
