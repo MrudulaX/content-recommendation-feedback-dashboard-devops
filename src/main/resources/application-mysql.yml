@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# MySQL backed profile - used for the staging/production style deployments
+# (docker-compose.mysql.yml, the Ansible provisioned node).
+# Activate with:  --spring.profiles.active=mysql   or   SPRING_PROFILES_ACTIVE=mysql
+# ---------------------------------------------------------------------------
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:crfd}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USER:crfd}
+    password: ${DB_PASSWORD:crfd}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: crfd-pool
+      maximum-pool-size: 15
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect
+  h2:
+    console:
+      enabled: false
+
+crfd:
+  environment: ${CRFD_ENVIRONMENT:staging}
+  simulation:
+    enabled: ${CRFD_SIMULATION_ENABLED:false}
+    seed-on-startup: ${CRFD_SEED_ON_STARTUP:false}
