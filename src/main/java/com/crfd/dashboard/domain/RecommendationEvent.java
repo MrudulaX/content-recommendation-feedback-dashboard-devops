@@ -118,11 +118,16 @@ public class RecommendationEvent {
     }
 
     /**
-     * Generates an identifier for an event that arrived without one, e.g. from the
-     * traffic simulator, alerts and explicit feedback.
+     * Mints a human-friendly business key for an event that arrived without one, e.g.
+     * {@code EVT-4F9C1A2B7D3E}.
+     *
+     * <p>Events are identified by this key wherever a person sees them - the searchable
+     * table, the status drill-down, alert messages - so it has to be readable. It is
+     * deliberately the same shape as the {@code ALT-} and {@code FB-} keys minted for
+     * alerts and explicit feedback, and as the keys the traffic simulator produces.</p>
      */
     public static String newEventId() {
-        return UUID.randomUUID().toString();
+        return "EVT-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
     }
 
     // ------------------------------------------------------------------ getters / setters
