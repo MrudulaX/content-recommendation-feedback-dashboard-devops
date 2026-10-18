@@ -92,9 +92,14 @@ crfd:
     spike-latency-ms: ${CRFD_SPIKE_LATENCY_MS:1350}
     async-enabled: ${CRFD_ASYNC_ENABLED:true}
 
-  # Thresholds the pipeline and the alerting rules evaluate. Every one of them is
-  # overridable by an environment variable, so a deployment can tune its own
-  # sensitivity without a rebuild.
+  # Thresholds the pipeline and the alerting rules evaluate.
+  #
+  # Every one of them is overridable by an environment variable, so a deployment
+  # can tune its own sensitivity without a rebuild.
+  #
+  # A breach raises an exception on the queue rather than failing a request: these
+  # are quality signals, not availability ones. See docs/05 for the full list of
+  # alert codes.
   thresholds:
     low-confidence: ${CRFD_LOW_CONFIDENCE:0.30}
     high-latency-ms: ${CRFD_HIGH_LATENCY_MS:500}
