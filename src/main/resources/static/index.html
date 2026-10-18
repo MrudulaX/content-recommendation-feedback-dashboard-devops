@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Content Recommendation Feedback Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#g1)"/>
+            <path d="M9 21V13M16 21V9M23 21v-5" stroke="#0b1220" stroke-width="2.6" stroke-linecap="round"/>
+            <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#5eead4"/>
+                    <stop offset="1" stop-color="#60a5fa"/>
+                </linearGradient>
+            </defs>
+        </svg>
+        <div class="brand-text">
+            <h1>Content Recommendation Feedback Dashboard</h1>
+            <p>Recommendation quality &amp; exception monitoring &middot; MVP</p>
+        </div>
+    </div>
+
+    <div class="topbar-actions">
+        <span id="env-badge" class="badge badge-muted" title="Deployment environment">env: …</span>
+        <span id="health-pill" class="badge badge-muted" title="Deep health check" data-status="UNKNOWN">
+            <span class="dot"></span><span id="health-text">checking…</span>
+        </span>
+        <label class="switch" title="Refresh the dashboard every 15 seconds">
+            <input type="checkbox" id="auto-refresh" checked>
+            <span>Auto-refresh</span>
+        </label>
+        <button id="btn-generate-traffic" class="btn btn-ghost" type="button">Generate traffic</button>
+        <button id="btn-add-event" class="btn btn-primary" type="button">+ Add event</button>
+    </div>
+</header>
+
+<main class="layout">
+
+    <!-- ===================== KPI strip (summary indicators) ===================== -->
+    <section class="kpi-strip" id="kpi-strip" aria-label="Summary indicators">
+        <article class="kpi" id="kpi-total">
+            <span class="kpi-label">Events (window)</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="window">–</span>
+        </article>
+        <article class="kpi" id="kpi-processed">
+            <span class="kpi-label">Processed</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="rate">success rate –</span>
+        </article>
+        <article class="kpi kpi-warn" id="kpi-failed">
+            <span class="kpi-label">Failed / quarantined</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="rate">failure rate –</span>
+        </article>
+        <article class="kpi kpi-danger" id="kpi-open-alerts">
+            <span class="kpi-label">Open exceptions</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="critical">critical –</span>
+        </article>
+        <article class="kpi" id="kpi-latency">
+            <span class="kpi-label">Avg pipeline latency</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="unit">ms</span>
+        </article>
+        <article class="kpi" id="kpi-ctr">
+            <span class="kpi-label">Click-through rate</span>
+            <span class="kpi-value" data-value="0">–</span>
+            <span class="kpi-sub" data-sub="clicks">– clicks / – impressions</span>
+        </article>
+    </section>
+
+    <!-- ===================== Charts ===================== -->
+    <section class="grid-2">
+        <article class="panel">
+            <header class="panel-head">
+                <h2>Feedback volume &amp; exceptions</h2>
+                <div class="panel-tools">
+                    <select id="chart-granularity" class="input input-sm">
+                        <option value="hour">Hourly</option>
+                        <option value="day">Daily</option>
+                    </select>
+                </div>
+            </header>
+            <div class="panel-body">
+                <div id="timeseries-chart" class="chart-host" role="img" aria-label="Event volume over time"></div>
+                <div class="legend">
+                    <span><i class="swatch swatch-total"></i> total</span>
+                    <span><i class="swatch swatch-processed"></i> processed</span>
+                    <span><i class="swatch swatch-failed"></i> failed</span>
+                    <span><i class="swatch swatch-alerts"></i> alerts</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="panel">
+            <header class="panel-head">
+                <h2>Status distribution</h2>
+                <span class="panel-note">live</span>
+            </header>
+            <div class="panel-body panel-body-donut">
+                <div id="status-donut" class="donut-host"></div>
+                <ul id="status-legend" class="donut-legend"></ul>
+            </div>
+        </article>
+    </section>
+
+    <!-- ===================== Distributions ===================== -->
+    <section class="grid-3">
+        <article class="panel">
+            <header class="panel-head"><h2>By recommender</h2></header>
+            <div class="panel-body"><div id="dist-source" class="bars"></div></div>
+        </article>
+        <article class="panel">
+            <header class="panel-head"><h2>By surface</h2></header>
+            <div class="panel-body"><div id="dist-surface" class="bars"></div></div>
+        </article>
+        <article class="panel">
+            <header class="panel-head"><h2>By event type</h2></header>
+            <div class="panel-body"><div id="dist-type" class="bars"></div></div>
+        </article>
+    </section>
+
+    <!-- ===================== Table + alerts ===================== -->
+    <section class="grid-main">
+        <article class="panel panel-table">
+            <header class="panel-head">
+                <h2>Searchable feedback events</h2>
+                <div class="panel-tools">
+                    <button id="btn-export" class="btn btn-ghost btn-sm" type="button">Export CSV</button>
+                    <button id="btn-refresh" class="btn btn-ghost btn-sm" type="button">Refresh</button>
+                </div>
+            </header>
+
+            <form id="filter-form" class="filters" autocomplete="off">
+                <input id="search-input" name="q" class="input" type="search"
+                       placeholder="Search eventId, user, item, message…" aria-label="Free text search">
+                <select id="filter-status" name="status" class="input" aria-label="Filter by status">
+                    <option value="">All statuses</option>
+                </select>
+                <select id="filter-type" name="eventType" class="input" aria-label="Filter by event type">
+                    <option value="">All types</option>
+                </select>
+                <select id="filter-source" name="source" class="input" aria-label="Filter by recommender">
+                    <option value="">All recommenders</option>
+                </select>
+                <select id="filter-surface" name="surface" class="input" aria-label="Filter by surface">
+                    <option value="">All surfaces</option>
+                </select>
+                <input id="filter-from" name="from" class="input" type="datetime-local" aria-label="From timestamp">
+                <input id="filter-to" name="to" class="input" type="datetime-local" aria-label="To timestamp">
+                <label class="check">
+                    <input id="filter-alerts-only" name="onlyWithAlerts" type="checkbox">
+                    <span>Only with alerts</span>
+                </label>
+                <div class="filter-actions">
+                    <button id="btn-apply-filters" class="btn btn-primary btn-sm" type="submit">Apply</button>
+                    <button id="btn-reset-filters" class="btn btn-ghost btn-sm" type="button">Reset</button>
+                </div>
+            </form>
+
+            <div class="table-wrap">
+                <table id="events-table" class="data-table">
+                    <thead>
+                    <tr>
+                        <th data-sort="createdAt">Created</th>
+                        <th data-sort="eventId">Event</th>
+                        <th data-sort="userId">User</th>
+                        <th data-sort="itemId">Item</th>
+                        <th>Type</th>
+                        <th data-sort="source">Recommender</th>
+                        <th data-sort="score">Score</th>
+                        <th data-sort="status">Status</th>
+                        <th data-sort="latencyMs">Latency</th>
+                    </tr>
+                    </thead>
+                    <tbody id="events-body">
+                    <tr class="empty"><td colspan="9">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="table-foot">
+                <span id="pagination-info">–</span>
+                <div class="pager">
+                    <button id="btn-prev" class="btn btn-ghost btn-sm" type="button">‹ Prev</button>
+                    <button id="btn-next" class="btn btn-ghost btn-sm" type="button">Next ›</button>
+                </div>
+            </footer>
+        </article>
+
+        <article class="panel panel-alerts">
+            <header class="panel-head">
+                <h2>Alert / exception view</h2>
+                <div class="panel-tools">
+                    <select id="alert-status-filter" class="input input-sm" aria-label="Filter alerts by status">
+                        <option value="OPEN">Open</option>
+                        <option value="">All</option>
+                        <option value="ACKNOWLEDGED">Acknowledged</option>
+                        <option value="RESOLVED">Resolved</option>
+                    </select>
+                </div>
+            </header>
+            <div class="panel-body">
+                <ul id="alerts-list" class="alert-list">
+                    <li class="empty">Loading…</li>
+                </ul>
+            </div>
+        </article>
+    </section>
+
+    <footer class="page-foot">
+        <span id="last-refreshed">–</span>
+        <span>
+            <a href="/swagger-ui.html" target="_blank" rel="noopener">API docs</a> ·
+            <a href="/actuator/health" target="_blank" rel="noopener">Actuator</a> ·
+            <a href="/api/v1/health" target="_blank" rel="noopener">Deep health</a>
+        </span>
+    </footer>
+</main>
+
+<!-- ===================== Event entry modal (data/event entry) ===================== -->
+<div id="event-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
+        <header class="modal-head">
+            <h2 id="event-modal-title">Submit a recommendation feedback event</h2>
+            <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </header>
+        <form id="event-form" class="modal-body">
+            <div class="field">
+                <label for="field-userId">User id *</label>
+                <input id="field-userId" name="userId" class="input" value="U-2048" required>
+            </div>
+            <div class="field">
+                <label for="field-itemId">Item id *</label>
+                <input id="field-itemId" name="itemId" class="input" placeholder="ITM-1001" required>
+            </div>
+            <div class="field">
+                <label for="field-itemTitle">Item title</label>
+                <input id="field-itemTitle" name="itemTitle" class="input" placeholder="Designing Data-Intensive Applications">
+            </div>
+            <div class="field">
+                <label for="field-eventType">Event type *</label>
+                <select id="field-eventType" name="eventType" class="input" required></select>
+            </div>
+            <div class="field">
+                <label for="field-source">Recommender</label>
+                <select id="field-source" name="source" class="input"></select>
+            </div>
+            <div class="field">
+                <label for="field-surface">Surface</label>
+                <select id="field-surface" name="surface" class="input"></select>
+            </div>
+            <div class="field">
+                <label for="field-score">Confidence score (0.00 – 1.00)</label>
+                <input id="field-score" name="score" class="input" type="number" min="0" max="1" step="0.01" value="0.82">
+            </div>
+            <div class="field">
+                <label for="field-rating">Rating (1–5, optional)</label>
+                <input id="field-rating" name="rating" class="input" type="number" min="1" max="5" step="1">
+            </div>
+            <p id="event-form-message" class="form-message" role="status"></p>
+            <footer class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close-modal>Cancel</button>
+                <button id="btn-submit-event" class="btn btn-primary" type="submit">Submit event</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== Drill-down drawer (status drill-down) ===================== -->
+<aside id="detail-drawer" class="drawer" hidden aria-label="Event drill-down">
+    <header class="drawer-head">
+        <div>
+            <h2>Event drill-down</h2>
+            <code id="detail-event-id">–</code>
+        </div>
+        <button id="detail-close" class="icon-btn" type="button" aria-label="Close drill-down">×</button>
+    </header>
+
+    <div class="drawer-body">
+        <section class="drawer-section">
+            <h3>Current state</h3>
+            <div id="detail-status-badges" class="badge-row"></div>
+            <dl id="detail-fields" class="kv"></dl>
+        </section>
+
+        <section class="drawer-section">
+            <h3>Status timeline</h3>
+            <ol id="detail-timeline" class="timeline"></ol>
+        </section>
+
+        <section class="drawer-section">
+            <h3>Related alerts</h3>
+            <ul id="detail-alerts" class="alert-list compact"></ul>
+        </section>
+
+        <section class="drawer-section">
+            <h3>Operator action</h3>
+            <div class="inline-form">
+                <select id="detail-new-status" class="input input-sm"></select>
+                <input id="detail-note" class="input input-sm" placeholder="Reason / ticket reference">
+                <button id="btn-change-status" class="btn btn-primary btn-sm" type="button">Update status</button>
+            </div>
+            <button id="btn-reprocess" class="btn btn-ghost btn-sm" type="button">Requeue through pipeline</button>
+        </section>
+    </div>
+</aside>
+
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<script src="/app.js" defer></script>
+</body>
+</html>
