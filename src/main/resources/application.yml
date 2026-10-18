@@ -92,6 +92,9 @@ crfd:
     spike-latency-ms: ${CRFD_SPIKE_LATENCY_MS:1350}
     async-enabled: ${CRFD_ASYNC_ENABLED:true}
 
+  # Thresholds the pipeline and the alerting rules evaluate. Every one of them is
+  # overridable by an environment variable, so a deployment can tune its own
+  # sensitivity without a rebuild.
   thresholds:
     low-confidence: ${CRFD_LOW_CONFIDENCE:0.30}
     high-latency-ms: ${CRFD_HIGH_LATENCY_MS:500}
