@@ -23,7 +23,7 @@ project invites and the answers that hold up.
   ③  merge --no-ff into develop              the reviewed unit is in the graph
         │
         ▼
-  ④  Jenkins: checkout → build → test       31 tests, jacoco.exec
+  ④  Jenkins: checkout → build → test       32 tests, jacoco.exec
         │
         ▼
   ⑤  package                                 target/*.jar + sha256
@@ -75,9 +75,9 @@ c97ae88 fix(CRFD-117): mint EVT- prefixed business keys on every write path
 ```bash
 $ ./mvnw -B clean test
 [INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- AlertServiceTest
-[INFO] Tests run: 5,  Failures: 0, Errors: 0, Skipped: 0  -- EventServiceTest
+[INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- EventServiceTest
 [INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0  -- EventApiTest
-[INFO] Tests run: 31, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 32, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -162,7 +162,7 @@ records it as a limitation rather than burying it here.
 git clone <repo> && cd content-recommendation-feedback-dashboard
 
 # 1. build and unit-test
-./mvnw -B clean package                              # 31 tests
+./mvnw -B clean package                              # 32 tests
 
 # 2. run it
 java -jar target/*.jar &                             # :8080

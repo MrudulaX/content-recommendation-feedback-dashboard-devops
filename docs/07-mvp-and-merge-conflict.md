@@ -130,11 +130,19 @@ release/v1.0.0  ─┬─►  main      merge --no-ff, then tag v1.0.0
 *released* code", which is the only definition of `main` that is useful during an
 incident, when the question is "what is in production and can I rebuild it?".
 
+The release branch is not a formality. `release/v1.0.0` is where the last fix
+landed. End-to-end verification of the candidate found that the minted event key
+did not match the shape the API catalogue documents - `EVT-5794A34B-98B` instead of
+`EVT-7F3A91C4` - a contract gap no test had pinned. The failing contract test, the
+generator fix and the verification evidence were committed on the release branch,
+and only then was the tag cut, so `v1.0.0` points at a state that was *verified*,
+not merely a state that was finished. `docs/11` §10 records it.
+
 The baseline is reproducible from the tag alone:
 
 ```bash
 git checkout v1.0.0
-mvn -B clean package                     # 31 tests
+mvn -B clean package                     # 32 tests
 ./mvnw -B -P selenium verify             # 5 journeys
 docker build -t crfd:1.0.0 .
 docker run -d -p 18080:8080 crfd:1.0.0

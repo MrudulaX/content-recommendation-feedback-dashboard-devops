@@ -100,7 +100,7 @@ test that covers it is named so that the requirement is not merely asserted.
 | NFR-7 | **Security** | No secrets in the repository; the container shall not run as root; error responses shall not leak stack traces. | Placeholder credentials in JCasC; non-root `crfd` user in the image; `GlobalExceptionHandler` returns a correlation id instead of an exception. |
 | NFR-8 | **Portability** | The same artefact shall run as a JAR or a WAR, and on H2 or MySQL, without code changes. | Maven profiles; environment-variable configuration. |
 | NFR-9 | **Maintainability** | The code shall be readable without generated boilerplate. | Records for DTOs, hand-written entities, no Lombok, package-by-layer with a clear service boundary. |
-| NFR-10 | **Testability** | Every capability shall be verifiable without a browser, and the critical journeys with one. | 31 unit/integration tests + 5 Selenium journeys. |
+| NFR-10 | **Testability** | Every capability shall be verifiable without a browser, and the critical journeys with one. | 32 unit/integration tests + 5 Selenium journeys. |
 | NFR-11 | **Build reproducibility** | The build shall not depend on what happens to be installed. | Maven wrapper pinned at 3.9.16; Dockerised Jenkins; pinned Ansible controller. |
 | NFR-12 | **Usability** | The dashboard shall be usable at 1366×768 and readable without colour alone. | Responsive layout; status is conveyed by text as well as colour. |
 

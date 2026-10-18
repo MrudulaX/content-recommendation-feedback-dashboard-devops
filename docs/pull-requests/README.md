@@ -193,7 +193,7 @@ them is worth investigating; and `SUCCESS_RATE` is computed from processed /
 (processed + failed), excluding `QUARANTINED`, which is a data-quality outcome and
 not a pipeline failure.
 
-**Verified.** 31 tests green; `/metrics/summary?windowHours=24` returns counts,
+**Verified.** 32 tests green; `/metrics/summary?windowHours=24` returns counts,
 rates, p95 and breakdowns; `/metrics/timeseries?granularity=hour` returns
 contiguous hourly buckets; a one-hour window over a quiet database returns zeroes
 and not an empty array.
@@ -218,7 +218,7 @@ addressable by item and by the event that prompted it. A rating below the
 configured floor raises `RATING_DROP` in the same transaction, so the alert cannot
 be lost to a crash between the two writes.
 
-**Verified.** 31 tests green; `POST /api/v1/feedback` returns 201 with an `FB-`
+**Verified.** 32 tests green; `POST /api/v1/feedback` returns 201 with an `FB-`
 reference; `GET /api/v1/feedback?itemId=...` returns that item's ratings; a rating
 of 1 puts `RATING_DROP` on the queue.
 
@@ -279,7 +279,14 @@ write path call it.
 
 **Verified.** `mvn -B -P selenium verify` 5/5 green, twice; the failing run before
 the fix kept its screenshot and page source; a `POST /api/v1/events` now returns
-`EVT-` plus 12 hex characters; 31 unit tests green.
+`EVT-` plus 8 hex characters; 32 unit tests green. The key *shape* was tightened
+later, on the release branch - see the follow-up note below.
+
+**Follow-up.** This commit produced keys of the shape `EVT-5794A34B-98B`: a UUID
+prefix with its hyphen left in, where the API catalogue documents `EVT-7F3A91C4`.
+No test asserted the shape - only the `EVT-` prefix - so the gap survived until
+release verification exercised the write path and read what came back. The
+generator was corrected and a contract test added; `docs/11` §10 records it.
 
 **Evidence.** `docs/evidence/selenium-defect-crfd-117/`.
 
@@ -306,7 +313,7 @@ told the same thing. A 500 is also an alerting signal, so a typo looked like a
 server fault - the worst kind of false positive, because it trains people to ignore
 the alert.
 
-**Verified.** 31 tests green including 2 new ones; `curl -i` on an unmapped URL
+**Verified.** 32 tests green including 2 new ones; `curl -i` on an unmapped URL
 returns 404 with the uniform body; `curl -i -X GET` on the status endpoint returns
 405 with `Allow: PATCH`; **and both regression tests fail against the parent
 commit**, captured in `docs/evidence/regression-tests-fail-before-fix.txt`.
@@ -338,7 +345,7 @@ Two endpoints, because there are two questions with two consumers:
 | `GET /api/v1/health` | can this instance serve traffic? | a hard dependency is `DOWN` | container health check, Nginx, the deploy gate |
 | `GET /api/v1/health/slo` | is the pipeline meeting its objective? | the success-rate SLO is breached | monitoring |
 
-**Verified.** 31 tests green including 2 new ones; a degraded instance returns 200
+**Verified.** 32 tests green including 2 new ones; a degraded instance returns 200
 with `status: DEGRADED` from `/health`; `/health/slo` returns 503 with
 `status: BREACHED` and the rate; `docker inspect` reports the container `healthy`
 on a degraded pipeline.
@@ -357,12 +364,12 @@ able to serve traffic.**
 
 `feature/CRFD-130-test-suite` → `develop` · `e1ca97f` · 1 commit (`17b4924`)
 
-**What this changes.** 31 tests across the pyramid, plus the regression tests the
+**What this changes.** 32 tests across the pyramid, plus the regression tests the
 three defects above needed.
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
-| `EventServiceTest` | 5 | ingestion, idempotency, quarantine, search behaviour |
+| `EventServiceTest` | 6 | ingestion, idempotency, quarantine, search behaviour |
 | `AlertServiceTest` | 6 | raising, duplicate suppression, lifecycle, illegal transitions |
 | `EventApiTest` | 20 | the whole MVP contract over a real Spring context and real H2 |
 
@@ -371,7 +378,7 @@ Regression tests: `unmappedUrlReturnsNotFoundInsteadOfServerError` (CRFD-121),
 `readinessIsIndependentOfTheSloGate` and `sloGatePassesWhenWithinObjective`
 (readiness/SLO split). All four fail against the pre-fix source.
 
-**Verified.** `mvn -B clean test` → 31 green; the same command on the parent commit
+**Verified.** `mvn -B clean test` → 32 green; the same command on the parent commit
 → 4 failed, all four regressions; a JaCoCo report is produced under
 `target/site/jacoco`.
 
@@ -596,7 +603,7 @@ dressed as a fix.
 `crfd.thresholds` is overridable by an environment variable - which is what makes
 the parameterised deployment in the pipeline possible without a rebuild.
 
-**Verified.** No behaviour change; `mvn -B test` 31 green; the application starts
+**Verified.** No behaviour change; `mvn -B test` 32 green; the application starts
 and the thresholds are unchanged.
 
 **Review comment.** Approved. Note for the next reviewer: this branch and PR #19
@@ -628,7 +635,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 answer different questions - #18 says why every threshold is overridable, #19 says
 that a breach raises an exception instead of failing a request - so the merged
 block carries both. No threshold value changed, which is why the resolution needed
-no re-run of the suite; it was run anyway, 31 green. Both parents are recorded in
+no re-run of the suite; it was run anyway, 32 green. Both parents are recorded in
 the merge commit (`e054ea2` has parents `e24ece6` and `00f77c8`), so the history
 shows a real merge rather than a commit written over the top of one.
 

@@ -76,13 +76,13 @@ Expected:
 
 ```text
 [INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- AlertServiceTest
-[INFO] Tests run: 5,  Failures: 0, Errors: 0, Skipped: 0  -- EventServiceTest
+[INFO] Tests run: 6,  Failures: 0, Errors: 0, Skipped: 0  -- EventServiceTest
 [INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0  -- EventApiTest
-[INFO] Tests run: 31, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 32, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
-**What this proves.** 31 tests covering the domain services and the whole API contract
+**What this proves.** 32 tests covering the domain services and the whole API contract
 over a real Spring context and a real (in-memory) database. The Selenium journeys are
 *not* in this run - they need a browser, and they are step 7.
 
@@ -159,7 +159,7 @@ curl -s -X POST $BASE/api/v1/events \
       }'
 ```
 
-Expect `201` and an `eventId` of the form `EVT-4F9C1A2B7D3E`. **That key shape is a
+Expect `201` and an `eventId` of the form `EVT-7F3A91C4`. **That key shape is a
 contract**: the dashboard, the smoke test and the Ansible assertions all depend on it,
 and `docs/11` is the story of what happened when the write path disagreed.
 
@@ -173,13 +173,13 @@ curl -s "$BASE/api/v1/events?status=PROCESSED&source=COLLABORATIVE_FILTER&size=5
 **Drill in, with the audit timeline:**
 
 ```bash
-curl -s $BASE/api/v1/events/EVT-4F9C1A2B7D3E | jq '.status, .auditTrail'
+curl -s $BASE/api/v1/events/EVT-7F3A91C4 | jq '.status, .auditTrail'
 ```
 
 **Move its status** (the audited manual transition):
 
 ```bash
-curl -s -X PATCH $BASE/api/v1/events/EVT-4F9C1A2B7D3E/status \
+curl -s -X PATCH $BASE/api/v1/events/EVT-7F3A91C4/status \
   -H 'Content-Type: application/json' \
   -d '{"status":"PROCESSED","reason":"manually confirmed","changedBy":"runbook"}'
 ```
@@ -510,7 +510,7 @@ you are cleaning, and not what you want on one you are demonstrating from.
 ## 14. The 60-second version
 
 ```powershell
-.\mvnw.cmd -B clean package                                   # 31 tests
+.\mvnw.cmd -B clean package                                   # 32 tests
 docker build -t crfd:1.0.0 .
 docker run -d --name crfd-app -p 18080:8080 -v crfd-data:/app/crfd-data crfd:1.0.0
 powershell -ExecutionPolicy Bypass -File scripts\smoke-test.ps1 -BaseUrl http://localhost:18080

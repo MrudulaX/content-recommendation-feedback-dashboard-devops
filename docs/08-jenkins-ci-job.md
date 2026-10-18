@@ -106,7 +106,7 @@ in Git, and it is code-reviewed like anything else. Ten stages:
 | # | Stage | What it does | Fails the build when |
 | --- | --- | --- | --- |
 | 1 | **Checkout & metadata** | `checkout scm`; resolves the git SHA, branch, `pom.xml` version and image tag; writes `build-info.properties` which is archived and baked into the image | Checkout fails |
-| 2 | **Build & unit test** | `mvn -B -U clean verify -DskipITs` — compiles, runs the 31 unit + API tests, writes `jacoco.exec` | Any test fails, or compilation fails |
+| 2 | **Build & unit test** | `mvn -B -U clean verify -DskipITs` — compiles, runs the 32 unit + API tests, writes `jacoco.exec` | Any test fails, or compilation fails |
 | 3 | **Package** | `mvn -B -DskipTests package`; archives `target/*.jar` **fingerprinted**, plus a SHA-256 checksum file | Packaging fails |
 | 4 | **Docker build & tag** | Builds the image with `--build-arg APP_VERSION` and `--build-arg BUILD_REVISION=<git sha>`; tags it with the resolved version, the git SHA and `latest`; archives `image-inspect.json` | The image does not build |
 | 5 | **Selenium E2E quality gate** | Starts the freshly built image as a container on `crfd-ci-net`, waits for `/api/v1/health`, starts `standalone-chrome`, runs `mvn -P selenium verify` with `SELENIUM_REMOTE_URL`; archives the JUnit XML, the failure screenshots and the application log | **Any journey fails — and that stops stages 6–10** |

@@ -57,6 +57,13 @@ provisioned node.
   `EVT-`-prefixed business keys that the API contract, the dashboard, the smoke
   test and the Ansible assertions all refer to. Caught by Selenium journeys J2 and
   J4; the unit and API tests could not see it.
+- **CRFD-117b** - the same contract, one layer down: the key that *was* minted had
+  the shape of a truncated UUID (`EVT-5794A34B-98B`) rather than the documented
+  business key (`EVT-7F3A91C4`), because the generator sliced a hyphenated UUID
+  string. No test asserted the shape, only the prefix, so it survived every earlier
+  run and was found by release verification. The generator now strips the hyphens
+  before truncating, and a `matches("EVT-[0-9A-F]{8}")` contract test pins the
+  shape. Committed on `release/v1.0.0` before the tag was cut.
 - **CRFD-121** - an unmapped URL returned 500 instead of 404, and a wrong HTTP verb
   returned 500 instead of 405. A client mistake was being reported as a server
   fault, which is also a false alert.

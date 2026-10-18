@@ -216,7 +216,7 @@ unbounded body is a real denial-of-service vector.
  ─────            ────────          ────────────        ────               ──────            ──────
  mvnw clean  ───▶ JAR + sha256  ───▶ crfd:<tag>    ───▶ Selenium 5/5  ───▶ docker run   ───▶ /health
  verify              archived        (+git sha)         30 tests           fresh container     write+read
- 31 tests             + build-info   image-inspect.json +screenshots       on crfd-ci-net      summary
+ 32 tests             + build-info   image-inspect.json +screenshots       on crfd-ci-net      summary
                           │                                    │                  │
                           │                                    │                  ▼
                           │                             FAILS? STOP HERE      rollback:

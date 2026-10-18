@@ -16,7 +16,7 @@ with Docker, end to end.
          ▼
    ① checkout            git sha, version, image tag          → build-info.properties
          ▼
-   ② build & unit test   mvn -B clean verify -DskipITs        → 31 tests, jacoco.exec
+   ② build & unit test   mvn -B clean verify -DskipITs        → 32 tests, jacoco.exec
          ▼
    ③ package             mvn -B -DskipTests package           → target/*.jar + sha256
          ▼
@@ -256,7 +256,7 @@ documented honestly:
 
 | Aspect | Status |
 | --- | --- |
-| Every stage command | **Executed and captured** — `mvn clean verify` (31 tests), `mvn -P selenium verify` (5 journeys), `docker build`, `docker run -p`, health poll, write→read smoke, all five Ansible playbooks with `changed=0` on the second run |
+| Every stage command | **Executed and captured** — `mvn clean verify` (32 tests), `mvn -P selenium verify` (5 journeys), `docker build`, `docker run -p`, health poll, write→read smoke, all five Ansible playbooks with `changed=0` on the second run |
 | Stage **ordering** | Verified by inspection after fixing the build-after-gate bug. The ordering is the property that cannot be proved by running stages individually |
 | Full Jenkins run | **Not executed end to end.** The controller is defined as code (`infra/jenkins/`) and requires a GitHub remote, which this environment has no credentials for. `docs/16` records this as a limitation; the exact commands to run it are in the README |
 | Networking assumptions | Verified independently: containers on `crfd-ci-net` address each other by alias, confirmed by the containerised Selenium run using `http://crfd-app:8080` behind the hub |

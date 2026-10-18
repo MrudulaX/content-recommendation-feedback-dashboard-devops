@@ -80,6 +80,28 @@ class EventServiceTest {
     }
 
     @Test
+    @DisplayName("mints an EVT- business key in the documented shape when the client omits the id")
+    void mintsBusinessKeyInTheDocumentedShape() {
+        // The contract quoted by the API catalogue, the dashboard, the smoke test and the
+        // Ansible health check: "EVT-" followed by 8 uppercase hex characters - the same
+        // shape as the ALT- and FB- keys. Release verification found the write path
+        // producing "EVT-5794A34B-98B" instead: a UUID prefix with its hyphen left in, so
+        // the key had the shape of a truncated UUID rather than of a business key.
+        assertThat(RecommendationEvent.newEventId()).matches("EVT-[0-9A-F]{8}");
+
+        when(events.existsByEventId(anyString())).thenReturn(false);
+
+        EventResponse response = service.ingest(request(null, "ITM-7", 0.7));
+
+        assertThat(response.eventId()).matches("EVT-[0-9A-F]{8}");
+
+        // ...and the key the client is handed is the key the pipeline is told about.
+        ArgumentCaptor<String> scheduled = ArgumentCaptor.forClass(String.class);
+        verify(pipeline).schedule(scheduled.capture());
+        assertThat(scheduled.getValue()).isEqualTo(response.eventId());
+    }
+
+    @Test
     @DisplayName("rejects a replayed event with 409 semantics and raises a DUPLICATE_EVENT exception")
     void rejectsDuplicate() {
         when(events.existsByEventId("EVT-DUP")).thenReturn(true);

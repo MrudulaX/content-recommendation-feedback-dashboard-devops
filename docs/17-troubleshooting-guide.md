@@ -111,7 +111,7 @@ inside it. `docs/18` uses the same ports.
 ### 2.1 `409 Conflict` when posting an event
 
 ```json
-{"status":409,"error":"Conflict","message":"Event EVT-4F9C1A2B7D3E has already been ingested","path":"/api/v1/events"}
+{"status":409,"error":"Conflict","message":"Event EVT-7F3A91C4 has already been ingested","path":"/api/v1/events"}
 ```
 
 **Cause.** Not a bug. Ingestion is idempotent: the same `eventId` twice is a replay, and

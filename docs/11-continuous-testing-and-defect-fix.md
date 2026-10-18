@@ -7,8 +7,8 @@ delivery chain, each catching a class of defect the previous one cannot:
 
 | Point | Runs | Catches | Cost of a miss |
 | --- | --- | --- | --- |
-| Every local build | `mvn -B clean verify` — 11 unit + 20 API tests | Logic errors, contract errors, wrong status codes, threshold maths | Seconds |
-| Every pipeline build, stage 2 | The same 31 tests, in CI, on a clean checkout | "Works on my machine", dependency drift | Minutes |
+| Every local build | `mvn -B clean verify` - 12 unit + 20 API tests | Logic errors, contract errors, wrong status codes, threshold maths | Seconds |
+| Every pipeline build, stage 2 | The same 32 tests, in CI, on a clean checkout | "Works on my machine", dependency drift | Minutes |
 | Every pipeline build, stage 5 | 5 Selenium journeys against the built image | The product is not actually usable | A broken release |
 
 The pipeline order enforces the economics: the cheap tests run first and the
@@ -20,7 +20,7 @@ nothing but time.
 
 | Layer | Count | Class | What it proves |
 | --- | --- | --- | --- |
-| Unit — services | 5 | `EventServiceTest` | Ingestion, idempotency, quarantine, search behaviour |
+| Unit — services | 6 | `EventServiceTest` | Ingestion, idempotency, quarantine, search behaviour, business-key shape |
 | Unit — alerting | 6 | `AlertServiceTest` | Raising, **duplicate suppression**, acknowledge/resolve transitions, illegal transitions |
 | API integration | 20 | `EventApiTest` | Every MVP capability over the real Spring context and a real database |
 | End-to-end | 5 | `DashboardJourneyIT` | The five critical journeys through a real browser |
@@ -259,7 +259,7 @@ queue. Suppression is not an optimisation, it is what makes the queue usable.
 ```
 src/test/java/com/crfd/dashboard/
 ├── service/
-│   ├── EventServiceTest.java        5  unit — ingestion, idempotency, quarantine, search
+│   ├── EventServiceTest.java        6  unit — ingestion, idempotency, quarantine, search
 │   └── AlertServiceTest.java        6  unit — raising, suppression, lifecycle, illegal transitions
 ├── web/
 │   └── EventApiTest.java           20  integration — MockMvc + real context + real H2
@@ -292,10 +292,79 @@ From `docs/02-agile-plan.md`, and actually enforced rather than aspirational:
 
 | Suite | Count | Command | Result |
 | --- | --- | --- | --- |
-| Unit | 11 | `mvn -B test` | pass |
+| Unit | 12 | `mvn -B test` | pass |
 | API integration | 20 | `mvn -B test` | pass |
 | End-to-end | 5 | `mvn -B -P selenium verify` | pass, twice, two environments |
 | Deployment smoke | 11 | `scripts/smoke-test.ps1 -BaseUrl http://localhost:18080` | pass |
 
 Evidence: `docs/evidence/smoke-test.txt`, `docs/evidence/selenium-remote-run.log`,
 `docs/evidence/selenium-defect-crfd-117/`, `docs/evidence/health-and-slo.txt`.
+
+## 10. What release verification found - CRFD-117b
+
+The two defects above were found by tests. This one was found by the *release*,
+and it is the honest argument for why verification is a separate activity from
+testing.
+
+The candidate `1.0.0` tree was checked out and put through the same three gates
+the pipeline runs - build and unit tests, the smoke test against the built
+container, and the Selenium journeys - as `docs/evidence/release-verification.txt`
+records. All three passed. What the smoke test *printed*, however, was
+
+```
+PASS  event accepted (id EVT-B1CB5C50-F67)
+```
+
+That is not the shape the API catalogue quotes. `docs/05` shows
+`"eventId": "EVT-7F3A91C4"`, and the same `PREFIX-` plus eight uppercase hex
+characters is the shape of the `ALT-` and `FB-` keys. The generated key was
+`"EVT-" + UUID.randomUUID().toString().substring(0, 12)`, and because a UUID's
+first hyphen sits at index 8, a twelve-character slice keeps it: `EVT-B1CB5C50-F67`
+reads like a truncated UUID rather than a business key.
+
+Every test passed because every test asserted the wrong thing. `EventServiceTest`
+asserted that the stored event could be *found*; `DashboardJourneyIT` J2 and J4
+asserted the key *starts with* `EVT-`; the smoke test did the same. Nothing pinned
+the shape, which is precisely the gap that let CRFD-117 through in the first place.
+
+The repair followed the same discipline as the numbered defects, with one
+difference: because the release branch exists exactly for this, it was done there
+rather than on `develop`. The contract test was written first and observed failing
+against the tagged tree:
+
+```java
+assertThat(RecommendationEvent.newEventId()).matches("EVT-[0-9A-F]{8}");
+
+when(events.existsByEventId(anyString())).thenReturn(false);
+EventResponse response = service.ingest(request(null, "ITM-7", 0.7));
+
+assertThat(response.eventId()).matches("EVT-[0-9A-F]{8}");
+
+// ...and the key the client is handed is the key the pipeline is told about.
+ArgumentCaptor<String> scheduled = ArgumentCaptor.forClass(String.class);
+verify(pipeline).schedule(scheduled.capture());
+assertThat(scheduled.getValue()).isEqualTo(response.eventId());
+```
+
+```
+[ERROR] EventServiceTest.mintsBusinessKeyInTheDocumentedShape:90
+  "EVT-B81AF717-948"
+  "EVT-[0-9A-F]{8}"
+```
+
+The generator then strips the hyphens before truncating, so the key has the
+documented shape at any length:
+
+```java
+return "EVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+```
+
+The suite went from 31 tests to 32, which is why the counts elsewhere in this
+report that describe the shipped suite read 32, while the references that describe
+the `v0.1.0-mvp` snapshot - and the transcripts of runs that happened when the
+suite was 31 - still read 31.
+
+One thing this section is not is a claim that the process caught everything. It is
+a claim that the process caught *something*, that the something was real, and that
+the response is recorded where a reader can check it. `docs/16` Part A lists the
+honest limits of that.

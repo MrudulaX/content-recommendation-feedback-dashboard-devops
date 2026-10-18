@@ -111,7 +111,7 @@ Story points are in the `Pts` column. Toolchain stories carry the `[platform]` t
 
 | ID | Story | Pts | Sprint |
 | --- | --- | --- | --- |
-| CRFD-130 | Unit + API integration test suite (31 tests) | 5 | 1–6 |
+| CRFD-130 | Unit + API integration test suite (32 tests) | 5 | 1–6 |
 | CRFD-131 | End-to-end acceptance walkthrough of all six capabilities | 3 | 7 |
 | CRFD-132 | Troubleshooting guide, limitations and future enhancements | 3 | 7 |
 | CRFD-133 | Report pack, viva preparation | 5 | 7 |
@@ -257,7 +257,7 @@ proves it:
  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
  │  PLAN    │──▶│  CODE    │──▶│  BUILD   │──▶│  TEST    │
  │          │   │          │   │          │   │          │
- │ docs/01  │   │ src/     │   │ mvnw     │   │ 31 unit+ │
+ │ docs/01  │   │ src/     │   │ mvnw     │   │ 32 unit+ │
  │ docs/02  │   │ BRANCHING│   │ pinned   │   │ integ    │
  │ backlog  │   │ .github/ │   │ 3.9.16   │   │ + 5 E2E  │
  └──────────┘   └──────────┘   └──────────┘   └────┬─────┘
@@ -290,7 +290,7 @@ proves it:
 | **Plan** | Frozen scope, 89-point backlog, DoD, sprint plan | `docs/01`, `docs/02`, GitHub issues |
 | **Code** | Feature branches, Conventional Commits, PRs with review | Git history, `.github/` |
 | **Build** | Maven wrapper, deterministic dependency resolution, profiles | `pom.xml`, `mvnw`, `.mvn/` |
-| **Test** | 11 unit + 20 API integration + 5 Selenium journeys; failure screenshots | `target/surefire-reports`, `target/failsafe-reports` |
+| **Test** | 12 unit + 20 API integration + 5 Selenium journeys; failure screenshots | `target/surefire-reports`, `target/failsafe-reports` |
 | **Release** | Annotated tags, JAR + checksums archived by the pipeline | `v0.1.0-mvp`, `v1.0.0` |
 | **Package** | Multi-stage Docker image, JRE-only runtime, non-root | `Dockerfile`, `crfd:1.0.0` |
 | **Deploy** | Jenkins deploys a fresh container; Ansible does the same over SSH | `Jenkinsfile` stages 6–9, `playbooks/deploy.yml` |
