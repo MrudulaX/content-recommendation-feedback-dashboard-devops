@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about the MVP scope
+    url: https://github.com/your-org/content-recommendation-feedback-dashboard/blob/main/docs/01-problem-definition-and-scope.md
+    about: The frozen scope for the 15-week MVP is documented here - please read it before opening an issue.
+  - name: How do I run this locally?
+    url: https://github.com/your-org/content-recommendation-feedback-dashboard/blob/main/docs/18-local-runbook.md
+    about: Setup, ports and troubleshooting for the local environment.
