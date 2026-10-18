@@ -1,0 +1,198 @@
+# =============================================================================
+#  Role: crfd_app
+#  Deploys the Content Recommendation Feedback Dashboard container onto a
+#  provisioned node, then verifies it is genuinely serving traffic.
+#
+#  Order of operations matters and is deliberate:
+#    1. the shared network and the data volume exist
+#    2. the requested image is available to the node's daemon
+#    3. the OUTGOING release is recorded  <-- this is what makes rollback possible
+#    4. the container is (re)created on the requested release
+#    5. the health endpoint is polled until the app reports UP
+#
+#  Step 3 only fires when the release actually changes, so a repeat run of the
+#  same playbook reports changed=0 - the idempotency evidence.
+# =============================================================================
+
+- name: Ensure the application network exists
+  community.docker.docker_network:
+    name: "{{ app_network_name }}"
+    driver: bridge
+    state: present
+
+- name: Ensure the data volume exists so the container stays replaceable
+  community.docker.docker_volume:
+    name: "{{ app_volume_name }}"
+    state: present
+
+# --------------------------------------------------------------------------- 2
+# `docker_image_info`'s `name` filter matches *references*, not repositories:
+# asking for `name: crfd` returns an empty list even when crfd:0.1.0 and
+# crfd:1.0.0 are both loaded (verified against this node's Docker 27). Listing
+# everything and matching RepoTags ourselves is both correct and unambiguous.
+- name: List the images present on the node
+  community.docker.docker_image_info: {}
+  register: crfd_local_images
+
+- name: Record whether the requested release is available locally
+  ansible.builtin.set_fact:
+    crfd_image_present: >-
+      {{ (crfd_local_images.images | default([]))
+         | selectattr('RepoTags', 'defined')
+         | map(attribute='RepoTags')
+         | flatten
+         | select('equalto', app_image ~ ':' ~ app_version) | list | length > 0 }}
+
+- name: Fail early with an actionable message when the image is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ app_image }}:{{ app_version }} is not present on {{ inventory_hostname }} and
+      app_pull_image is false. Build and load it first, e.g.
+      'docker save {{ app_image }}:{{ app_version }} | docker exec -i <node> docker load',
+      or set app_pull_image=true and app_image to a registry reference.
+  when:
+    - not (app_pull_image | bool)
+    - not (crfd_image_present | bool)
+
+- name: Pull the requested release from the registry
+  community.docker.docker_image:
+    name: "{{ app_image }}"
+    tag: "{{ app_version }}"
+    source: pull
+    force_source: false
+  register: crfd_pull_result
+  retries: 3
+  delay: 10
+  until: crfd_pull_result is succeeded
+  when: app_pull_image | bool
+
+# --------------------------------------------------------------------------- 3
+- name: Inspect the container that is currently deployed
+  community.docker.docker_container_info:
+    name: "{{ app_container_name }}"
+  register: crfd_current_container
+  failed_when: false
+
+- name: Determine the version currently running on the node
+  ansible.builtin.set_fact:
+    crfd_current_version: >-
+      {{ (crfd_current_container.container | default({}, true)).get('Config', {}).get('Image', '')
+         | regex_replace('^.*:', '') }}
+
+# Only when the release actually changes: record the outgoing version so that
+# playbooks/rollback.yml has somewhere to return to.
+- name: Record the outgoing release for rollback
+  ansible.builtin.copy:
+    dest: "{{ rollback_state_file }}"
+    content: "{{ crfd_current_version }}\n"
+    mode: "0640"
+  when:
+    - crfd_current_container.exists | default(false)
+    - crfd_current_version | length > 0
+    - crfd_current_version != app_version
+  register: crfd_rollback_point
+
+- name: Append the transition to the release history
+  ansible.builtin.lineinfile:
+    path: "{{ release_history_file }}"
+    line: "{{ ansible_date_time.iso8601 }}  {{ crfd_current_version | default('none') }} -> {{ app_version }}  (by ansible, host={{ inventory_hostname }})"
+    create: true
+    mode: "0640"
+  when: crfd_rollback_point is changed
+
+# --------------------------------------------------------------------------- 3b
+- name: Render the application environment file (auditable record of config)
+  ansible.builtin.copy:
+    dest: "{{ crfd_config_dir }}/crfd-app.env"
+    mode: "0640"
+    owner: "{{ common_deploy_user | default('root') }}"
+    group: "{{ common_deploy_user | default('root') }}"
+    content: |
+      # Managed by Ansible - do not edit by hand.
+      # Role: crfd_app   Host: {{ inventory_hostname }}   Env: {{ app_environment }}
+      CRFD_ENVIRONMENT={{ app_environment }}
+      CRFD_SIMULATION_ENABLED={{ app_simulation_enabled }}
+      CRFD_SEED_ON_STARTUP={{ app_seed_on_startup }}
+      CRFD_METRICS_WINDOW_HOURS={{ app_metrics_window_hours }}
+      CRFD_HIGH_LATENCY_MS={{ app_high_latency_ms }}
+      CRFD_CRITICAL_LATENCY_MS={{ app_critical_latency_ms }}
+      CRFD_LOW_CONFIDENCE={{ app_low_confidence }}
+
+# --------------------------------------------------------------------------- 4
+- name: Deploy the application container on the requested release
+  community.docker.docker_container:
+    name: "{{ app_container_name }}"
+    image: "{{ app_image }}:{{ app_version }}"
+    state: started
+    # Deliberately NOT `recreate: true`. The module already compares the running
+    # container against the desired configuration and recreates it only when
+    # something genuinely differs. Forcing a recreate would make the task report
+    # changed on every run, which would break the changed=0 idempotency evidence
+    # that this role's header comment promises.
+    pull: false
+    restart_policy: "{{ app_restart_policy }}"
+    # Resource limits are opt-in: an empty value omits the parameter entirely.
+    # They are omitted on the disposable demo node because a Docker engine
+    # running nested inside another container cannot apply cgroup controller
+    # configuration, and asking it to fails the container start with
+    # 'cannot enter cgroupv2 "/sys/fs/cgroup/docker" with domain controllers'.
+    # Real nodes, which are not nested, set both values (see group_vars/all.yml).
+    memory: "{{ app_memory_limit if (app_memory_limit | default('') | length > 0) else omit }}"
+    cpus: "{{ app_cpu_limit if (app_cpu_limit | default('') | length > 0) else omit }}"
+    env: "{{ crfd_container_env }}"
+    published_ports:
+      - "{{ app_port }}:{{ app_container_port }}"
+    volumes:
+      - "{{ app_volume_name }}:/app/crfd-data"
+    networks:
+      - name: "{{ app_network_name }}"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:{{ app_container_port }}{{ app_health_path }}"]
+      interval: 30s
+      timeout: 5s
+      retries: "{{ app_health_retries }}"
+      start_period: 50s
+    labels:
+      app: "{{ crfd_app_name }}"
+      environment: "{{ app_environment }}"
+      version: "{{ app_version }}"
+      managed_by: ansible
+  register: crfd_container_result
+
+- name: Report what the container task did
+  ansible.builtin.debug:
+    msg: >-
+      container {{ app_container_name }}:
+      {{ 'recreated' if crfd_container_result.changed else 'already up-to-date (no change)' }}
+
+# --------------------------------------------------------------------------- 5
+- name: Wait until the deployed application reports UP
+  ansible.builtin.uri:
+    url: "http://{{ crfd_probe_host | default('localhost') }}:{{ app_port }}{{ app_health_path }}"
+    return_content: true
+    status_code: 200
+    timeout: 10
+  register: crfd_health
+  until: crfd_health is succeeded and (app_health_expected in (crfd_health.content | default('')))
+  retries: "{{ app_health_retries }}"
+  delay: "{{ app_health_delay }}"
+  changed_when: false
+
+- name: Show the health payload returned by the node
+  ansible.builtin.debug:
+    msg: "{{ crfd_health.content }}"
+
+- name: Assert the dashboard UI is reachable through the node
+  ansible.builtin.uri:
+    url: "http://{{ crfd_probe_host | default('localhost') }}:{{ app_port }}/"
+    status_code: 200
+    return_content: true
+  register: crfd_ui
+  changed_when: false
+
+- name: Confirm the served page really is the dashboard
+  ansible.builtin.assert:
+    that:
+      - "'Content Recommendation Feedback Dashboard' in crfd_ui.content"
+    success_msg: "Dashboard UI served correctly from {{ inventory_hostname }}"
+    fail_msg: "The node answered on / but did not serve the dashboard UI"

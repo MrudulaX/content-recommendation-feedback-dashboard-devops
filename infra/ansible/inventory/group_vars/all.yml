@@ -1,0 +1,66 @@
+# =============================================================================
+#  Group variables shared by every node in the CRFD inventory.
+#  Host- or group-specific overrides live in inventory/group_vars/<group>.yml.
+# =============================================================================
+
+# --- identity ---------------------------------------------------------------
+crfd_app_name: content-recommendation-feedback-dashboard
+crfd_release_dir: /opt/crfd
+crfd_config_dir: /etc/crfd
+crfd_log_dir: /var/log/crfd
+crfd_data_dir: /var/lib/crfd/data
+
+# --- container --------------------------------------------------------------
+app_image: crfd
+app_version: "1.0.0"
+app_container_name: crfd-app
+app_volume_name: crfd-data
+app_network_name: crfd-net
+app_port: 8080
+app_container_port: 8080
+app_environment: production
+app_simulation_enabled: false
+app_seed_on_startup: false
+app_metrics_window_hours: 24
+app_high_latency_ms: 500
+app_critical_latency_ms: 1500
+app_low_confidence: "0.30"
+app_restart_policy: unless-stopped
+# Container resource limits. Set on real nodes. The disposable demo node runs its
+# Docker engine nested inside another container, where a nested engine cannot
+# apply cgroup controller configuration; demo-overrides.yml therefore blanks both
+# values (an empty value omits the parameter rather than passing 0).
+app_memory_limit: 768m
+app_cpu_limit: "1.0"
+app_pull_image: true
+
+# --- alerting thresholds (forwarded to the application as environment) ------
+crfd_alert_thresholds:
+  CRFD_LOW_CONFIDENCE: "{{ app_low_confidence }}"
+  CRFD_HIGH_LATENCY_MS: "{{ app_high_latency_ms }}"
+  CRFD_CRITICAL_LATENCY_MS: "{{ app_critical_latency_ms }}"
+  CRFD_METRICS_WINDOW_HOURS: "{{ app_metrics_window_hours }}"
+
+# --- health checking --------------------------------------------------------
+# Probes run *on* the target node, where the container publishes its port, so
+# localhost is always the correct address regardless of how the inventory
+# addresses the host.
+crfd_probe_host: localhost
+app_health_path: /api/v1/health
+app_health_retries: 30
+app_health_delay: 5
+# Readiness means "the instance can serve", i.e. its hard dependency is up.
+# The report also surfaces the separate SLO gate at /api/v1/health/slo, but that
+# is an alerting signal, not a rollout blocker.
+app_health_expected: '"database":"UP"'
+
+# --- nginx ------------------------------------------------------------------
+nginx_enabled: true
+nginx_upstream_host: "{{ app_container_name }}"
+nginx_upstream_port: "{{ app_container_port }}"
+nginx_server_port: 80
+nginx_container_name: crfd-nginx
+
+# --- rollback ---------------------------------------------------------------
+rollback_state_file: "{{ crfd_config_dir }}/previous-release.txt"
+release_history_file: "{{ crfd_config_dir }}/release-history.log"

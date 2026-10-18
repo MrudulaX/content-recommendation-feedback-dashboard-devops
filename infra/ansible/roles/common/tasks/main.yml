@@ -1,0 +1,88 @@
+# =============================================================================
+#  Role: common
+#  Establishes the baseline every CRFD node needs, independent of the
+#  application: correct time, a deploy user, log/config/data directories and
+#  the small set of packages the later roles depend on.
+#
+#  Everything here is idempotent by construction - running site.yml a second
+#  time changes nothing, which is the idempotency evidence for the report.
+# =============================================================================
+
+- name: Gather the minimum facts the role needs
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "min"
+      - "distribution"
+  when: ansible_facts.distribution is not defined
+
+- name: Include the operating-system specific package list
+  ansible.builtin.include_vars: "{{ ansible_facts.os_family | lower }}.yml"
+  failed_when: false
+
+# Deliberately before the timezone task: on Alpine the timezone module shells out
+# to `setup-timezone`, which ships in the `alpine-conf` package. Configuring
+# before installing the tools to configure with is the classic ordering bug.
+- name: Install the baseline packages
+  ansible.builtin.package:
+    name: "{{ common_packages }}"
+    state: present
+  register: common_pkg_result
+  retries: 3
+  delay: 5
+  until: common_pkg_result is succeeded
+  when: common_packages | length > 0
+
+- name: Ensure the timezone is UTC so log timestamps are comparable
+  community.general.timezone:
+    name: "{{ common_timezone }}"
+  when: ansible_facts.os_family != 'Darwin'
+
+- name: Create the deploy group
+  ansible.builtin.group:
+    name: "{{ common_deploy_user }}"
+    state: present
+    system: true
+
+- name: Create the deploy user
+  ansible.builtin.user:
+    name: "{{ common_deploy_user }}"
+    group: "{{ common_deploy_user }}"
+    shell: "{{ common_deploy_shell }}"
+    create_home: true
+    system: true
+    state: present
+
+- name: Ensure the application directory structure exists
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(common_deploy_user) }}"
+    group: "{{ item.group | default(common_deploy_user) }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ crfd_release_dir }}", mode: "0755" }
+    - { path: "{{ crfd_config_dir }}", mode: "0750" }
+    - { path: "{{ crfd_log_dir }}", mode: "0755" }
+    - { path: "{{ crfd_data_dir }}", mode: "0750" }
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Write the node identity banner (proof the node was provisioned, not clicked)
+  ansible.builtin.copy:
+    dest: "{{ crfd_config_dir }}/node-info.txt"
+    mode: "0644"
+    # force: false is what keeps the role idempotent. The banner embeds
+    # ansible_date_time, which is different on every run, so re-writing it would
+    # make site.yml report changed=1 forever and destroy the changed=0 evidence.
+    # Not overwriting is also the semantically correct behaviour: the banner
+    # records when the node was *first* provisioned.
+    force: false
+    content: |
+      managed_by      : Ansible (CRFD provisioning)
+      app             : {{ crfd_app_name }}
+      environment     : {{ app_environment }}
+      role            : {{ crfd_node_role | default('appserver') }}
+      provisioned_at  : {{ ansible_date_time.iso8601 }}
+      hostname        : {{ inventory_hostname }}
+      ansible_version : {{ ansible_version.full }}

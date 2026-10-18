@@ -1,0 +1,63 @@
+# =============================================================================
+#  Role: nginx
+#  Places an Nginx reverse proxy in front of the dashboard container, so the
+#  application can be redeployed without the public entry point changing.
+#
+#  Skipped entirely when nginx_enabled is false (as on the single-node demo).
+# =============================================================================
+
+- name: Ensure the reverse proxy joins the application network
+  community.docker.docker_network:
+    name: "{{ app_network_name }}"
+    driver: bridge
+    state: present
+  when: nginx_enabled | bool
+
+- name: Render the Nginx site configuration from the template
+  ansible.builtin.copy:
+    dest: "{{ crfd_config_dir }}/nginx-crfd.conf"
+    mode: "0644"
+    content: "{{ lookup('template', 'crfd.conf.j2') }}"
+  when: nginx_enabled | bool
+  register: nginx_site_config
+  notify: Reload nginx
+
+- name: Deploy the Nginx container
+  community.docker.docker_container:
+    name: "{{ nginx_container_name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    recreate: true
+    pull: true
+    restart_policy: unless-stopped
+    published_ports:
+      - "{{ nginx_server_port }}:80"
+    volumes:
+      - "{{ crfd_config_dir }}/nginx-crfd.conf:/etc/nginx/conf.d/default.conf:ro"
+    networks:
+      - name: "{{ app_network_name }}"
+    labels:
+      app: "{{ crfd_app_name }}"
+      role: edge-proxy
+      managed_by: ansible
+  register: nginx_container
+  when: nginx_enabled | bool
+
+- name: Verify the reverse proxy forwards to the dashboard
+  ansible.builtin.uri:
+    url: "http://{{ crfd_probe_host | default('localhost') }}:{{ nginx_server_port }}/api/v1/health"
+    status_code: 200
+    return_content: true
+  register: nginx_health
+  until: nginx_health is succeeded
+  retries: 15
+  delay: 3
+  changed_when: false
+  when: nginx_enabled | bool
+
+- name: Report the proxy health result
+  ansible.builtin.debug:
+    msg: "nginx -> {{ nginx_health.json.status | default('unknown') }} (port {{ nginx_server_port }})"
+  when:
+    - nginx_enabled | bool
+    - nginx_health.json is defined

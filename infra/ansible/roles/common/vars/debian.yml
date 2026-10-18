@@ -1,0 +1,11 @@
+---
+# Debian/Ubuntu baseline packages.
+common_packages:
+  - curl
+  - ca-certificates
+  - tzdata
+  - python3
+  - python3-pip
+  - gnupg
+  - apt-transport-https
+  - jq

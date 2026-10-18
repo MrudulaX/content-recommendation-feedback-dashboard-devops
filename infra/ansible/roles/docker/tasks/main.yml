@@ -1,0 +1,120 @@
+# =============================================================================
+#  Role: docker
+#  Turns a bare node into a container host.
+#
+#  If a working Docker engine is already present (as on the disposable demo
+#  node, or on a host pre-baked by the platform team) the role detects it and
+#  reports no changes - the correct idempotent behaviour.
+# =============================================================================
+
+- name: Check whether a Docker CLI is already installed
+  ansible.builtin.command: docker --version
+  register: docker_cli_probe
+  changed_when: false
+  failed_when: false
+
+- name: Check whether the Docker daemon is reachable
+  ansible.builtin.command: docker info --format '{{ "{{" }}.ServerVersion{{ "}}" }}'
+  register: docker_daemon_probe
+  changed_when: false
+  failed_when: false
+  when: docker_cli_probe.rc == 0
+
+- name: Record the Docker detection result
+  ansible.builtin.set_fact:
+    docker_already_installed: "{{ docker_cli_probe.rc == 0 and (docker_daemon_probe.rc | default(1)) == 0 }}"
+
+- name: Report the detection result
+  ansible.builtin.debug:
+    msg: >-
+      docker_engine: {{ 'already present (version ' ~ docker_daemon_probe.stdout ~ ')'
+                        if docker_already_installed | bool else 'absent - the role will install it' }}
+
+- name: Install the Docker engine (Debian family)
+  when:
+    - not (docker_already_installed | bool)
+    - ansible_facts.os_family == 'Debian'
+  block:
+    - name: Add the Docker apt key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+        force: false
+
+    - name: Add the Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ ansible_facts.architecture | replace('x86_64','amd64') }}
+          signed-by=/etc/apt/keyrings/docker.asc
+          https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}
+          {{ ansible_facts.distribution_release }} stable
+        filename: docker
+        state: present
+        update_cache: true
+
+    - name: Install the Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+- name: Install the Docker packages (Alpine family)
+  community.general.apk:
+    name:
+      - docker
+      - docker-cli-compose
+    state: present
+    update_cache: true
+  when:
+    - not (docker_already_installed | bool)
+    - ansible_facts.os_family == 'Alpine'
+
+- name: Ensure the Docker daemon is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  when: not (docker_already_installed | bool)
+
+- name: Wait for the Docker daemon to answer
+  ansible.builtin.command: docker info --format '{{ "{{" }}.ServerVersion{{ "}}" }}'
+  register: docker_version_after_install
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: docker_version_after_install.rc == 0
+
+- name: Add the deploy user to the docker group
+  ansible.builtin.user:
+    name: "{{ common_deploy_user }}"
+    groups: docker
+    append: true
+  when: not (docker_already_installed | bool)
+
+- name: Configure the daemon to keep its logs bounded
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+  when: not (docker_already_installed | bool)
+  notify: Restart docker
+
+- name: Prove the engine works by pulling nothing and listing what is present
+  ansible.builtin.command: docker images --format '{{ "{{" }}.Repository{{ "}}" }}:{{ "{{" }}.Tag{{ "}}" }}'
+  register: docker_images
+  changed_when: false
+
+- name: Show the images available on the node
+  ansible.builtin.debug:
+    msg: "{{ docker_images.stdout_lines | default([]) }}"
