@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+# Production profile: no synthetic traffic, no startup seeding, minimal actuator
+# surface. Thresholds remain overridable per environment by the deployment
+# pipeline (Jenkins parameter / Ansible variable).
+# ---------------------------------------------------------------------------
+crfd:
+  environment: ${CRFD_ENVIRONMENT:production}
+  simulation:
+    enabled: false
+    seed-on-startup: false
+  processing:
+    async-enabled: true
+  thresholds:
+    minimum-success-rate: ${CRFD_MINIMUM_SUCCESS_RATE:0.98}
+
+spring:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: WARN
+    com.crfd.dashboard: INFO
