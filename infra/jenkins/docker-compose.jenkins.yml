@@ -1,0 +1,80 @@
+# =============================================================================
+#  Jenkins controller for the CRFD project - installed and configured as code.
+#
+#    docker compose -f infra/jenkins/docker-compose.jenkins.yml up -d
+#    ->  http://localhost:8085      (unlock password printed by the first run)
+#
+#  Deliberately provisioned with:
+#    * JDK 21 + Maven 3.9 auto-installed as Jenkins tools (JCasC)
+#    * the plugins required by the Jenkinsfile (plugins.txt)
+#    * the Docker CLI + socket, so the pipeline can build/run containers
+#    * a jobs DSL seed job that registers the CRFD pipeline from SCM
+#
+#  This is the "Jenkins installation and configuration" evidence: the whole
+#  controller is reproducible from source control instead of hand-clicked.
+# =============================================================================
+
+services:
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: crfd-jenkins
+    restart: unless-stopped
+    user: root
+    ports:
+      - "8085:8080"     # Jenkins UI
+      - "50000:50000"   # inbound agents
+    environment:
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=false
+        -Dhudson.model.DownloadService.noSignatureCheck=true
+        -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=30
+      CASC_JENKINS_CONFIG: /var/jenkins_home/casc
+      JENKINS_ADMIN_ID: admin
+      JENKINS_ADMIN_PASSWORD: crfd-admin
+      CRFD_REPO_URL: ${CRFD_REPO_URL:-https://github.com/your-org/content-recommendation-feedback-dashboard.git}
+      CRFD_REPO_BRANCH: ${CRFD_REPO_BRANCH:-develop}
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - ./jenkins.yaml:/var/jenkins_home/casc/jenkins.yaml:ro
+      - ./plugins.txt:/usr/share/jenkins/ref/plugins.txt:ro
+      # Docker-outside-of-Docker: the pipeline shells out to the host daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../..:/workspace/crfd
+    networks:
+      - crfd-ci
+
+  # Local registry so the pipeline can publish a versioned image without
+  # needing a Docker Hub account. Complement it with:
+  #   docker run -d -p 5001:5000 --name registry registry:2
+  registry:
+    image: registry:2
+    container_name: crfd-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - crfd-ci
+
+  # Standalone browser used by the Selenium quality gate.
+  selenium:
+    image: selenium/standalone-chrome:4.25.0
+    container_name: crfd-selenium-standalone
+    restart: unless-stopped
+    shm_size: 2g
+    ports:
+      - "4444:4444"
+      - "7900:7900"   # noVNC, useful when debugging failures locally
+    networks:
+      - crfd-ci
+
+networks:
+  crfd-ci:
+    name: crfd-ci-net
+    driver: bridge
+
+volumes:
+  jenkins-home:
+  registry-data:
