@@ -9,10 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -25,6 +27,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, List.of());
+    }
+
+    /**
+     * No handler and no static resource matches the request.
+     *
+     * <p>Without this mapping Spring throws {@link NoResourceFoundException}, which the
+     * catch-all below would turn into a {@code 500}. A caller asking for a URL that does
+     * not exist is a client mistake, not a server fault, and must see {@code 404} - the
+     * distinction matters to clients that retry on 5xx.</p>
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND,
+                "No endpoint matches " + request.getMethod() + " " + request.getRequestURI(),
+                request, List.of());
+    }
+
+    /** The path exists but not for this verb - e.g. GET on the status PATCH endpoint. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                          HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED,
+                "HTTP " + request.getMethod() + " is not supported for " + request.getRequestURI()
+                        + (ex.getSupportedHttpMethods() == null ? ""
+                           : "; supported methods: " + ex.getSupportedHttpMethods()),
+                request, List.of());
     }
 
     @ExceptionHandler(DuplicateEventException.class)
