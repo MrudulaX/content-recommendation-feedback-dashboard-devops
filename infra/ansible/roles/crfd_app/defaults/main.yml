@@ -1,0 +1,14 @@
+---
+# The environment handed to the container. Kept as a mapping (rather than a
+# rendered file) so that community.docker can compare it and only recreate the
+# container when something really changed.
+crfd_container_env: >-
+  {{ {
+       'CRFD_ENVIRONMENT': app_environment,
+       'CRFD_SIMULATION_ENABLED': app_simulation_enabled | string,
+       'CRFD_SEED_ON_STARTUP': app_seed_on_startup | string,
+       'CRFD_METRICS_WINDOW_HOURS': app_metrics_window_hours | string,
+       'CRFD_HIGH_LATENCY_MS': app_high_latency_ms | string,
+       'CRFD_CRITICAL_LATENCY_MS': app_critical_latency_ms | string,
+       'CRFD_LOW_CONFIDENCE': app_low_confidence | string
+     } }}

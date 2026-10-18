@@ -1,0 +1,6 @@
+---
+- name: Reload nginx
+  community.docker.docker_container_exec:
+    container: "{{ nginx_container_name }}"
+    command: nginx -s reload
+  ignore_errors: true

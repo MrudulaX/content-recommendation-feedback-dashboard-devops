@@ -1,0 +1,50 @@
+# =============================================================================
+#  site.yml - the whole node lifecycle, in one playbook.
+#
+#    ansible-playbook -i inventory/hosts.ini playbooks/site.yml
+#
+#  Run it against a bare node and it becomes a running CRFD node.
+#  Run it again and nothing changes: that second run is the idempotency
+#  evidence for the report (watch the PLAY RECAP show changed=0).
+#
+#  Narrow the scope with tags, e.g.:
+#    --tags provision      only the baseline + container host
+#    --tags deploy         only (re)deploy the application
+#    --tags nginx          only the edge proxy
+# =============================================================================
+
+- name: Provision the CRFD application nodes
+  hosts: crfd
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Announce the run
+      ansible.builtin.debug:
+        msg: >-
+          Provisioning {{ inventory_hostname }}
+          ({{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }})
+          for environment '{{ app_environment }}' with release {{ app_image }}:{{ app_version }}
+
+  roles:
+    - role: common
+      tags: [provision, common, baseline]
+
+    - role: docker
+      tags: [provision, docker, container-host]
+
+    - role: crfd_app
+      tags: [deploy, app]
+
+    - role: nginx
+      tags: [edge, nginx]
+      when: nginx_enabled | bool
+
+  post_tasks:
+    - name: Summarise the node state
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} is serving {{ app_image }}:{{ app_version }}
+          on port {{ app_port }}
+          {{ '(through nginx on port ' ~ nginx_server_port ~ ')' if nginx_enabled | bool else '(direct, no proxy)' }}

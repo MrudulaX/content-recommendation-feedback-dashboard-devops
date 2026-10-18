@@ -1,0 +1,15 @@
+---
+# Alpine baseline packages.
+#
+# alpine-conf is not optional: community.general.timezone shells out to
+# `setup-timezone` on Alpine, and that script is part of alpine-conf. Without it
+# the timezone task fails with 'Failed to find required executable "setup-timezone"'.
+common_packages:
+  - curl
+  - ca-certificates
+  - tzdata
+  - alpine-conf
+  - python3
+  - py3-pip
+  - bash
+  - jq

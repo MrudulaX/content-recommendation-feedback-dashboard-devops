@@ -1,0 +1,45 @@
+# =============================================================================
+#  Extra variables for the disposable demo node.
+#
+#  Applied as `-e @inventory/demo-overrides.yml`. Extra vars are the highest
+#  precedence source in Ansible, which is exactly what is needed here: these
+#  values must beat inventory/group_vars/all.yml, whose defaults assume a real
+#  registry, a real init system and production data hygiene.
+#
+#  The demo node is a throwaway container, so three production defaults are
+#  wrong for it:
+# =============================================================================
+
+# There is no registry in the demo. The application image is loaded with
+# `docker load` (the demo script does that before touching Ansible), so the role
+# must not try to pull `crfd:0.1.0` from Docker Hub.
+app_pull_image: false
+
+# The node is a container with no init system, so nothing would supervise an
+# nginx process. The application port is published directly instead.
+nginx_enabled: false
+
+# A dashboard with no data demonstrates nothing. Allowing the simulator and the
+# seeder to run gives the node real events, real indicators and real exceptions
+# to show - which is also what makes the readiness/SLO distinction visible:
+# the node serves traffic (readiness UP) while the pipeline success rate sits
+# below its 0.95 objective (the SLO gate is breached).
+app_simulation_enabled: true
+app_seed_on_startup: true
+
+# Marks this node as provisioned-by-the-demo rather than production, and it is
+# what the container env file records.
+app_environment: provisioned
+
+# The node's Docker engine is itself running inside a container. A nested engine
+# cannot apply cgroup controller configuration, so asking it to enforce CPU and
+# memory limits fails the container start with:
+#
+#   unable to apply cgroup configuration: cannot enter cgroupv2
+#   "/sys/fs/cgroup/docker" with domain controllers
+#
+# Blanking the two values makes the role omit the parameters, which is the
+# correct behaviour for a node that cannot enforce them. This is a real property
+# of nested Docker, not a workaround for a bug in the playbook.
+app_memory_limit: ""
+app_cpu_limit: ""
