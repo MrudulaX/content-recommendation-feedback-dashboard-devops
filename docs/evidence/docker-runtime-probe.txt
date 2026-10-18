@@ -1,0 +1,40 @@
+﻿=== The runtime image ships a JRE only: no Maven, no compiler ===
+
+--- java -version ---
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+
+--- maven present? ---
+ABSENT - no build tooling in the runtime image
+--- javac present? ---
+ABSENT - no compiler in the runtime image
+
+--- the process does not run as root ---
+uid=100(crfd) gid=101(crfd) groups=101(crfd)
+
+--- /app contents (single fat JAR + the data volume mount point) ---
+total 57596
+drwxr-xr-x 1 crfd crfd     4096 Oct 18 12:17 .
+drwxr-xr-x 1 root root     4096 Oct 18 12:18 ..
+-rw-r--r-- 1 crfd crfd 58964421 Oct 18 12:17 app.jar
+drwxr-xr-x 2 crfd crfd     4096 Oct 18 11:48 crfd-data
+
+--- runtime image package list ---
+alpine-baselayout
+alpine-keys
+alpine-release
+apk-tools
+busybox
+ca-certificates
+coreutils
+curl
+fontconfig
+gnupg
+musl-locales
+musl-locales-lang
+musl-utils
+openssl
+p11-kit-trust
+ttf-dejavu
+tzdata
