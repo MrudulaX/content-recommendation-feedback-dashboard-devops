@@ -1,0 +1,11 @@
+﻿=== GET /api/v1/health  (readiness: 200 while the instance can serve) ===
+{"status":"DEGRADED","application":"Content Recommendation Feedback Dashboard","version":"1.0.0-SNAPSHOT","environment":"docker","uptimeSeconds":169,"database":"UP","latestEventAt":"2026-10-18T12:19:01.952013Z","openAlerts":33,"sloBreached":true,"checks":{"database":"UP","ingestion":"UP","openAlerts":"33","criticalOpenAlerts":"12","pipelineSuccessRate":"0.9027","sloMinimum":"0.95"},"checkedAt":"2026-10-18T12:21:01.675147600Z"}
+HTTP 200
+
+=== GET /api/v1/health/slo  (business gate: 503 while the SLO is breached) ===
+{"status":"BREACHED","sloBreached":true,"pipelineSuccessRate":"0.9027","sloMinimum":"0.95","criticalOpenAlerts":"12","checkedAt":"2026-10-18T12:21:01.857754078Z"}
+HTTP 503
+
+=== GET /actuator/health ===
+{"status":"UP","components":{"db":{"status":"UP","details":{"database":"H2","validationQuery":"isValid()"}},"diskSpace":{"status":"UP","details":{"total":1081101176832,"free":1016361832448,"threshold":10485760,"path":"/app/.","exists":true}},"ping":{"status":"UP"}}}
+HTTP 200

@@ -1,0 +1,38 @@
+﻿Regression suite run against the PRE-FIX source tree
+======================================================
+
+Purpose: prove the defects recorded as CRFD-117, CRFD-121 and the
+         readiness/SLO split were real, i.e. that the regression tests
+         genuinely fail before the fix and pass after it. A regression
+         test that cannot fail is not a regression test.
+
+Command: mvnw.cmd -B test        (31 tests)
+
+Result: 4 of 31 failed, all four of them regression tests.
+
+[ERROR] Tests run: 20, Failures: 4, Errors: 0, Skipped: 0, Time elapsed: 19.88 s <<< FAILURE! -- in com.crfd.dashboard.web.EventApiTest
+[ERROR]   EventApiTest.readinessIsIndependentOfTheSloGate:401 Status expected:<200> but was:<503>
+[ERROR]   EventApiTest.sloGatePassesWhenWithinObjective:426 Status expected:<200> but was:<500>
+[ERROR]   EventApiTest.unmappedUrlReturnsNotFoundInsteadOfServerError:273 Status expected:<404> but was:<500>
+[ERROR]   EventApiTest.wrongVerbReturnsMethodNotAllowed:288 Status expected:<405> but was:<500>
+[ERROR] Tests run: 31, Failures: 4, Errors: 0, Skipped: 0
+
+-- the failing assertions, verbatim from the Surefire output --
+  [ERROR]   EventApiTest.readinessIsIndependentOfTheSloGate:401 Status expected:<200> but was:<503>
+  [ERROR]   EventApiTest.sloGatePassesWhenWithinObjective:426 Status expected:<200> but was:<500>
+  [ERROR]   EventApiTest.unmappedUrlReturnsNotFoundInsteadOfServerError:273 Status expected:<404> but was:<500>
+  [ERROR]   EventApiTest.wrongVerbReturnsMethodNotAllowed:288 Status expected:<405> but was:<500>
+  java.lang.AssertionError: Status expected:<200> but was:<500>
+  java.lang.AssertionError: Status expected:<200> but was:<503>
+  java.lang.AssertionError: Status expected:<404> but was:<500>
+  java.lang.AssertionError: Status expected:<405> but was:<500>
+
+-- two of the responses the old code actually produced --
+  Body = {"timestamp":"2026-10-18T13:00:10.311647800Z","status":500,"error":"Internal Server Error","message":"Unexpected error. Correlation id: c059c980-1a91-4521-b29a-881ee698cbe2","path":"/api/v1/events/EVT-V1/status","fieldErrors":[]}
+  Body = {"timestamp":"2026-10-18T13:00:10.994382500Z","status":500,"error":"Internal Server Error","message":"Unexpected error. Correlation id: 475336a0-e99a-4711-a9d8-b9ac62baeebd","path":"/api/v1/does-not-exist","fieldErrors":[]}
+
+Interpretation:
+  wrongVerbReturnsMethodNotAllowed            expected 405, got 500  (CRFD-121)
+  unmappedUrlReturnsNotFoundInsteadOfServerError  expected 404, got 500  (CRFD-121)
+  readinessIsIndependentOfTheSloGate          expected 200, got 503  (readiness/SLO split)
+  sloGatePassesWhenWithinObjective            expected 200, got 500  (/health/slo did not exist)

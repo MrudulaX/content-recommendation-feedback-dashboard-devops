@@ -119,15 +119,22 @@ public class RecommendationEvent {
 
     /**
      * Mints a human-friendly business key for an event that arrived without one, e.g.
-     * {@code EVT-4F9C1A2B7D3E}.
+     * {@code EVT-7F3A91C4}.
      *
      * <p>Events are identified by this key wherever a person sees them - the searchable
      * table, the status drill-down, alert messages - so it has to be readable. It is
      * deliberately the same shape as the {@code ALT-} and {@code FB-} keys minted for
-     * alerts and explicit feedback, and as the keys the traffic simulator produces.</p>
+     * alerts and explicit feedback, and as the keys the traffic simulator produces:
+     * {@code PREFIX-} followed by eight uppercase hexadecimal characters.</p>
+     *
+     * <p>The hyphens are stripped before truncating. A UUID's hyphen sits at index 8, so
+     * {@code toString().substring(0, 8)} happens to be clean but any longer prefix is not
+     * - a 12-character slice yields {@code EVT-5794A34B-98B}, which reads like a truncated
+     * UUID rather than a business key. Stripping first means the key has the documented
+     * shape at any length, which is what the contract tests assert.</p>
      */
     public static String newEventId() {
-        return "EVT-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+        return "EVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
     }
 
     // ------------------------------------------------------------------ getters / setters

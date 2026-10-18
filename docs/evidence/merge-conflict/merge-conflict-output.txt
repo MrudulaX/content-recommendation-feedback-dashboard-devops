@@ -1,0 +1,78 @@
+﻿Deliberate merge conflict - CRFD-103 vs CRFD-105, both documenting the
+same thresholds block in src/main/resources/application.yml
+==============================================================================
+
+Two branches, both cut from the same develop tip (91dc232), both rewrote
+the comment above the crfd.thresholds block:
+
+  feature/CRFD-103-threshold-documentation    commit 3a9cd32
+  feature/CRFD-105-alert-threshold-documentation  commit 00f77c8
+
+CRFD-103 merged first (PR #18). CRFD-105 then conflicted, exactly as the
+policy in BRANCHING.md section 6 anticipates.
+
+------------------------------------------------------------------------------
+git merge output
+------------------------------------------------------------------------------
+Auto-merging src/main/resources/application.yml
+CONFLICT (content): Merge conflict in src/main/resources/application.yml
+Automatic merge failed; fix conflicts and then commit the result.
+
+------------------------------------------------------------------------------
+git status --short at the conflict
+------------------------------------------------------------------------------
+UU src/main/resources/application.yml
+?? CHANGELOG.md
+?? docs/
+
+------------------------------------------------------------------------------
+the conflict markers in the file
+------------------------------------------------------------------------------
+src\main\resources\application.yml:92:    spike-latency-ms: ${CRFD_SPIKE_LATENCY_MS:1350}
+  src\main\resources\application.yml:93:    async-enabled: ${CRFD_ASYNC_ENABLED:true}
+  src\main\resources\application.yml:94:
+> src\main\resources\application.yml:95:<<<<<<< HEAD
+  src\main\resources\application.yml:96:  # Thresholds the pipeline and the alerting rules evaluate. Every one of them 
+is
+  src\main\resources\application.yml:97:  # overridable by an environment variable, so a deployment can tune its own
+  src\main\resources\application.yml:98:  # sensitivity without a rebuild.
+> src\main\resources\application.yml:99:=======
+  src\main\resources\application.yml:100:  # Alert thresholds. A breach raises an exception on the queue rather than 
+failing
+  src\main\resources\application.yml:101:  # a request: these are quality signals, not availability ones. See docs/05 
+for
+  src\main\resources\application.yml:102:  # the full list of alert codes.
+> src\main\resources\application.yml:103:>>>>>>> feature/CRFD-105-alert-threshold-documentation
+  src\main\resources\application.yml:104:  thresholds:
+  src\main\resources\application.yml:105:    low-confidence: ${CRFD_LOW_CONFIDENCE:0.30}
+  src\main\resources\application.yml:106:    high-latency-ms: ${CRFD_HIGH_LATENCY_MS:500}
+
+------------------------------------------------------------------------------
+resolution
+------------------------------------------------------------------------------
+Kept both intents; no threshold value changed. Committed as:
+
+e054ea2  Merge pull request #19 from crfd/feature/CRFD-105-alert-threshold-documentation
+
+Both parents are recorded, so the history shows this was a real merge and
+not a fresh commit written over the conflict:
+
+e054ea2  parents: e24ece6 00f77c8
+
+The resolved block:
+
+async-enabled: ${CRFD_ASYNC_ENABLED:true}
+
+  # Thresholds the pipeline and the alerting rules evaluate.
+  #
+  # Every one of them is overridable by an environment variable, so a deployment
+  # can tune its own sensitivity without a rebuild.
+  #
+  # A breach raises an exception on the queue rather than failing a request: these
+  # are quality signals, not availability ones. See docs/05 for the full list of
+  # alert codes.
+  thresholds:
+    low-confidence: ${CRFD_LOW_CONFIDENCE:0.30}
+
+Final state of the block's structure (no conflict markers remain):
+  markers remaining: 0

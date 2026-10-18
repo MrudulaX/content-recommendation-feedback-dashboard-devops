@@ -1,0 +1,25 @@
+﻿Ansible provisioning demo - PLAY RECAP per step
+(produced by scripts/ansible-demo.ps1 -KeepRunning; full logs alongside this file)
+
+STEP 1  site.yml -e app_version=0.1.0        (first run: node 0.1.0)
+  crfd-node                  : ok=30   changed=9    unreachable=0    failed=0    skipped=17   rescued=0    ignored=0
+
+STEP 2  site.yml -e app_version=0.1.0        (SECOND IDENTICAL RUN -> idempotency)
+  crfd-node                  : ok=30   changed=0    unreachable=0    failed=0    skipped=17   rescued=0    ignored=0
+
+STEP 3  deploy.yml -e app_version=1.0.0      (records 0.1.0 as the rollback point)
+  crfd-node                  : ok=20   changed=4    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+
+STEP 4  healthcheck.yml                      (read-only verification)
+  crfd-node                  : ok=7    changed=0    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+STEP 5  rollback.yml                         (recovery to the recorded release)
+  crfd-node                  : ok=23   changed=3    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0
+
+Rollback bookkeeping on the node after the demo:
+  previous-release.txt : 1.0.0        (names the release just left -> can roll forward again)
+  release-history.log  : 2026-10-18T12:44:43Z  0.1.0 -> 1.0.0  (by ansible, host=crfd-node)
+                         2026-10-18T12:45:20Z  1.0.0 -> 0.1.0  (by ansible, host=crfd-node)
+
+Running container on the node after the demo:
+  crfd-app   crfd:0.1.0   Up (healthy)   0.0.0.0:8080->8080/tcp

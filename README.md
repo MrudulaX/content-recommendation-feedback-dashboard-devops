@@ -213,7 +213,7 @@ uses `/health/slo`.
 | Web container | Embedded Tomcat (JAR) + external Tomcat `war` profile | Both deployment shapes are demonstrated |
 | Reverse proxy | Nginx 1.27 | TLS/edge concern kept out of the application |
 | UI | Vanilla ES2020 + CSS, no bundler | Keeps the artefact a single JAR; no Node toolchain in the pipeline |
-| Unit / integration tests | JUnit 5, Spring Boot Test, MockMvc, AssertJ | 31 tests |
+| Unit / integration tests | JUnit 5, Spring Boot Test, MockMvc, AssertJ | 32 tests |
 | End-to-end tests | Selenium 4.25 + WebDriverManager | 5 critical user journeys |
 | CI/CD | Jenkins (declarative `Jenkinsfile`) + a GitHub Actions mirror | Jenkins is the pipeline of record |
 | Containers | Docker multi-stage; Compose | 401 MB image, JRE-only runtime |
@@ -310,7 +310,7 @@ Three layers, each catching a different class of defect.
 
 | Layer | Count | Command | What it proves |
 | --- | --- | --- | --- |
-| Unit | 11 | `mvn -B test` | Service logic: idempotency, thresholds, alert lifecycle, timeline ordering |
+| Unit | 12 | `mvn -B test` | Service logic: idempotency, thresholds, alert lifecycle, timeline ordering |
 | API integration | 20 | `mvn -B test` | Every MVP capability end-to-end over the real context and a real H2 database |
 | End-to-end (Selenium) | 5 | `mvn -B -P selenium verify` | The five critical user journeys through a real browser |
 
