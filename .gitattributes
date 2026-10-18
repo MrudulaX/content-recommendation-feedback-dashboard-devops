@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------------------
+# Line-ending policy
+#
+# The pipeline runs on a Linux agent (`Jenkinsfile` uses `sh`, `bash`, `curl`,
+# `sha256sum`), but the project is developed on Windows. Without an explicit
+# policy, a Windows checkout can rewrite the shell scripts with CRLF and the
+# first thing the agent says is:
+#
+#     bash: ./scripts/wait-for-health.sh: /bin/bash^M: bad interpreter
+#
+# ...which looks like a missing interpreter and is actually a line ending.
+# So: text files are stored with LF in the repository, on every platform.
+# ---------------------------------------------------------------------------
+
+* text=auto eol=lf
+
+# Shell scripts and anything else executed by a Linux interpreter must be LF.
+*.sh    text eol=lf
+mvnw    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.java  text eol=lf
+*.xml   text eol=lf
+*.md    text eol=lf
+Jenkinsfile text eol=lf
+Dockerfile  text eol=lf
+*.ini   text eol=lf
+*.cfg   text eol=lf
+
+# Windows-only entry points keep the platform's own endings.
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary - never touch.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.jar   binary
+*.war   binary
+*.woff  binary
+*.woff2 binary

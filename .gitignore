@@ -1,0 +1,72 @@
+# ---------------------------------------------------------------------------
+# Content Recommendation Feedback Dashboard - .gitignore
+# ---------------------------------------------------------------------------
+
+# --- Java / Maven ---
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.hprof
+
+# --- IDE / editors ---
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated/
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs / runtime output ---
+*.log
+logs/
+crfd-data/
+data/
+*.pid
+
+# ...but the run logs under docs/evidence ARE deliverable artefacts: they are the
+# captured proof that a stage ran and what it produced. Without this exception the
+# whole evidence trail silently disappears from a fresh clone, taking with it the
+# idempotency (changed=0) and rollback proof.
+!docs/evidence/**
+!docs/evidence/**/*.log
+
+# --- Local environment secrets (never commit real credentials) ---
+.env
+.env.*
+!.env.example
+application-local.properties
+application-secrets.properties
+secrets/
+
+# --- Test / report artefacts ---
+**/surefire-reports/
+**/failsafe-reports/
+**/jacoco.exec
+**/site/
+reports/generated/
+target/selenium-screenshots/
+
+# --- Local Docker / infra scratch ---
+infra/**/inventory/hosts.local.ini
+infra/docker/volumes/
