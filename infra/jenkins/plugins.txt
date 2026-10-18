@@ -1,0 +1,56 @@
+# =============================================================================
+#  Jenkins plugins required by the CRFD Jenkinsfile.
+#  Installed with the Jenkins plugin installation manager at image build time:
+#    jenkins-plugin-cli --plugins -f /usr/share/jenkins/ref/plugins.txt
+#  (or install the same list once and let the image cache it under /var/jenkins_home)
+# =============================================================================
+
+# --- pipeline / job definitions ---------------------------------------------
+workflow-aggregator
+workflow-cps
+workflow-job
+workflow-basic-steps
+workflow-multibranch
+pipeline-stage-view
+job-dsl
+configuration-as-code
+
+# --- SCM --------------------------------------------------------------------
+git
+github
+github-branch-source
+
+# --- build tooling ----------------------------------------------------------
+maven-plugin
+jdks
+ant
+
+# --- test reports / quality gates ------------------------------------------
+junit
+jacoco
+htmlpublisher
+warnings-ng
+coverage
+
+# --- containers -------------------------------------------------------------
+docker-workflow
+docker-plugin
+docker-commons
+cloudbees-docker-custom-build-environment
+
+# --- credentials / secrets --------------------------------------------------
+credentials
+credentials-binding
+plain-credentials
+
+# --- UX / ergonomics --------------------------------------------------------
+timestamper
+ansicolor
+build-timeout
+ws-cleanup
+dashboard-view
+blueocean
+
+# --- notifications ----------------------------------------------------------
+mailer
+slack

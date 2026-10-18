@@ -1,0 +1,160 @@
+# =============================================================================
+#  Jenkins Configuration as Code (JCasC) for the CRFD project.
+#  Mounted at $JENKINS_HOME/casc/jenkins.yaml.
+#
+#  Reproduces, from source control:
+#    * the security realm and the admin user
+#    * the JDK 21 and Maven 3.9 tool installations the Jenkinsfile references
+#    * the Docker Hub credential placeholder used by the publish stage
+#    * the seed job that creates the CRFD pipeline from the repository
+# =============================================================================
+
+jenkins:
+  systemMessage: "Content Recommendation Feedback Dashboard - end-to-end CI/CD (build, Selenium quality gate, Docker, Ansible)."
+  numExecutors: 2
+  mode: NORMAL
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID:-admin}"
+          password: "${JENKINS_ADMIN_PASSWORD:-crfd-admin}"
+          name: "CRFD Administrator"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
+
+  # The pipeline needs to shell out to Docker; nothing else is pre-installed.
+  agentProtocol: REMOTE
+  quietPeriod: 2
+  scmCheckoutRetryCount: 3
+
+  nodes:
+    - permanent:
+        name: "built-in"
+        labelString: "built-in master docker maven jdk21"
+        numExecutors: 2
+        remoteFS: "/var/jenkins_home"
+        retentionStrategy: "always"
+
+  clouds:
+    - docker:
+        name: "crfd-docker"
+        dockerApi:
+          dockerHost:
+            uri: "unix:///var/run/docker.sock"
+        templates:
+          - labelString: "crfd-builder"
+            dockerTemplateBase:
+              image: "maven:3.9.9-eclipse-temurin-21"
+              volumes:
+                - "/var/run/docker.sock:/var/run/docker.sock"
+            instanceCapStr: "2"
+            remoteFs: "/home/jenkins/agent"
+
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "git"
+  jdk:
+    installations:
+      - name: "JDK21"
+        home: "/opt/java/openjdk"
+        properties:
+          - installSource:
+              installers:
+                - adoptOpenJdk:
+                    id: "jdk-21.0.5+11"
+  maven:
+    installations:
+      - name: "M3"
+        properties:
+          - installSource:
+              installers:
+                - maven:
+                    id: "3.9.9"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-crfd"
+              username: "crfd-ci"
+              password: "REPLACE_WITH_A_GITHUB_PAT"
+              description: "GitHub access for the CRFD repository (replace or use a token credential)"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "dockerhub-credentials"
+              username: "REPLACE_WITH_DOCKERHUB_USER"
+              password: "REPLACE_WITH_DOCKERHUB_TOKEN"
+              description: "Docker Hub push credentials used by the 'Publish image' stage"
+
+unclassified:
+  location:
+    url: "http://localhost:8085/"
+    adminAddress: "crfd-team@example.com"
+  timestamper:
+    allPipelines: true
+  buildDiscarders:
+    configuredBuildDiscarders:
+      - "jobBuildDiscarder"
+  mavenModuleSet:
+    localRepository: "/var/jenkins_home/.m2/repository"
+
+jobs:
+  - script: |
+      // -----------------------------------------------------------------------
+      // Seed job: registers the CRFD pipeline straight from the Jenkinsfile in
+      // the repository, so the job definition itself is version controlled.
+      // -----------------------------------------------------------------------
+      pipelineJob('crfd-dashboard-pipeline') {
+
+        description('''Content Recommendation Feedback Dashboard - full DevOps pipeline.
+                       Checkout -> unit test -> package -> Docker build -> Selenium
+                       quality gate -> reports -> publish -> deploy -> health -> Ansible.''')
+
+        // Parameters are deliberately NOT duplicated here. The Jenkinsfile owns
+        // them, and `lightweight(false)` below means Jenkins checks the file out
+        // to read them, so the job is parameterised from the moment it is seeded.
+        // Declaring them in both places lets the two definitions drift, and the
+        // Jenkinsfile's copy silently wins at build time - a difference that is
+        // discovered at the worst possible moment.
+
+        triggers {
+          pollSCM('H/5 * * * *')
+        }
+
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url(System.getenv('CRFD_REPO_URL') ?: 'https://github.com/your-org/content-recommendation-feedback-dashboard.git')
+                  credentials('github-crfd')
+                }
+                branches(System.getenv('CRFD_REPO_BRANCH') ?: 'develop')
+                extensions {
+                  wipeOutWorkspace()
+                  cloneOptions { timeout(10) }
+                }
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+
+        logRotator {
+          numToKeep(20)
+          artifactNumToKeep(10)
+        }
+      }
