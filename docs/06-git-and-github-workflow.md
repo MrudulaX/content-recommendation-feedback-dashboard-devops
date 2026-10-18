@@ -117,12 +117,12 @@ Refs CRFD-101 CRFD-101b
 | --- | --- | --- |
 | `feat` | A new capability | 11 |
 | `fix` | A defect repair | 4 |
-| `docs` | Documentation only | 4 |
+| `docs` | Documentation only | 5 |
 | `test` | Tests only | 3 |
 | `ci` | Pipeline and controller | 2 |
 | `chore` | Housekeeping, releases | 2 |
 | `build` | Packaging and dependencies | 1 |
-| **Total non-merge commits** | | **27** |
+| **Total non-merge commits** | | **28** |
 
 Two conventions that do real work:
 
@@ -356,7 +356,7 @@ Both of these are recorded again in `docs/16-limitations-and-future-enhancements
 git log --oneline --graph --all                 # the whole shape
 git log --first-parent --oneline develop         # the reviewed units
 git log --merges --format="%h %s" develop        # the 19 PRs (+ the release merge)
-git log --no-merges --format="%h %s" develop     # 27 working commits
+git log --no-merges --format="%h %s" develop     # 28 working commits
 git branch --list                                # the 22 branches
 git tag -l                                       # the 2 release tags
 git for-each-ref --format="%(refname:short)" refs/tags

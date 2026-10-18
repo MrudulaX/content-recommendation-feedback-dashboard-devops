@@ -13,7 +13,7 @@ cd content-recommendation-feedback-dashboard
 ```
 
 Prerequisites: **JDK 21**, **Maven 3.9+** (wrapper included), Docker (optional).
-See `docs/18-runbook-local-setup.md` for the full environment matrix.
+See `docs/18-local-runbook.md` for the full environment matrix.
 
 ## 2. Pick up work
 
@@ -33,7 +33,7 @@ See `docs/18-runbook-local-setup.md` for the full environment matrix.
 - Java 21, 4-space indent, no wildcard imports.
 - Controllers stay thin: validate → delegate to a service → map to a DTO record.
 - Never return JPA entities from a controller; use the `web/dto` records.
-- All new REST endpoints must appear in `docs/03-requirements-architecture-and-technology.md#api-catalogue`
+- All new REST endpoints must appear in `docs/05-api-catalogue.md`
   and in the OpenAPI UI (`/swagger-ui.html`).
 - Front-end lives in `src/main/resources/static/` (no bundler, plain ES2020 modules).
 - Configuration goes through `application*.yml` / environment variables — no hard-coded
@@ -41,7 +41,7 @@ See `docs/18-runbook-local-setup.md` for the full environment matrix.
 
 ## 4. Definition of Done
 
-The authoritative checklist is in `docs/02-agile-planning-and-devops-workflow.md`.
+The authoritative checklist is in `docs/02-agile-plan.md`.
 In short: code + tests + docs + green pipeline + reviewed PR + merged + issue closed.
 
 ## 5. Code of conduct

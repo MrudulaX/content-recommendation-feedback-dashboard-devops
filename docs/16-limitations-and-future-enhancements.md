@@ -40,7 +40,7 @@ expecting an incremental history will notice within one command.
   genuinely broken, those four tests would pass - this is the strongest single check on
   the whole story.
 
-**Why not fabricate the dates.** Spreading 48 commits over 15 weeks would have
+**Why not fabricate the dates.** Spreading 49 commits over 15 weeks would have
 produced a history that *looked* like a project artefact without being one. A
 compressed timeline honestly labelled is worth more than a plausible timeline that is
 invented - particularly in a report whose central claim is that its evidence can be

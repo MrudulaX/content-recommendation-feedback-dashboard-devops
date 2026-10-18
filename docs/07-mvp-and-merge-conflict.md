@@ -93,7 +93,7 @@ of the rest of the report.
 
 ```bash
 $ git diff --shortstat v0.1.0-mvp v1.0.0
- 97 files changed, 13067 insertions(+), 13 deletions(-)
+ 98 files changed, 13087 insertions(+), 16 deletions(-)
 ```
 
 ```bash

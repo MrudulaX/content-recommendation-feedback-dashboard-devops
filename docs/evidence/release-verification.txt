@@ -3,12 +3,14 @@
 ================================================================================
 
  date       : 2026-10-18 19:16 +05:30
- candidate  : release/v1.0.0 at 85d31a3
+ candidate  : release/v1.0.0 at 85d31a3, the tip when the run was made
               "fix(CRFD-117b): mint EVT- keys in the documented shape"
-              (the tree that the annotated tag v1.0.0 points at)
+              v1.0.0 was cut at this branch's later tip, repairs included
  host       : Windows 11, Docker Desktop, engine 29.7.2 (linux containers)
  toolchain  : OpenJDK 21.0.12.1 LTS, Apache Maven 3.9.16 (wrapper)
  image      : crfd:1.0.0  sha256:ce0912682d08  401 MB
+              built from the source at 85d31a3; the later release commits change
+              documentation only, so this is the image the tag ships
  container  : crfd-app    b803a6682272
               network crfd-selenium-net, -p 18080:8080,
               volume crfd-data:/app/crfd-data, healthcheck GET /api/v1/health
@@ -171,11 +173,12 @@
  process can and cannot promise.
 
 --------------------------------------------------------------------------------
- SECOND FINDING - a stale number in the report
+ SECOND AND THIRD FINDINGS - the report checked against itself
 --------------------------------------------------------------------------------
 
- The same pass checked the report's citation of the release baseline. docs/07
- quoted
+ The same pass read the report's own claims and checked them.
+
+ **A stale number.** docs/07 quoted
 
    $ git diff --shortstat v0.1.0-mvp v1.0.0
     57 files changed, 4931 insertions(+), 11 deletions(-)
@@ -184,10 +187,23 @@
  and was never updated. The measured value at the tagged tree is
 
    $ git diff --shortstat v0.1.0-mvp v1.0.0
-    97 files changed, 13067 insertions(+), 13 deletions(-)
+    98 files changed, 13087 insertions(+), 16 deletions(-)
 
  docs/07 §4 now carries the measured value. The image size (401 MB), the
  journey count (5) and the smoke check count (11) all verified as stated.
+
+ **Unresolved references.** CONTRIBUTING.md sent a contributor to three files
+ that do not exist in this repository - docs/18-runbook-local-setup.md,
+ docs/03-requirements-architecture-and-technology.md and
+ docs/02-agile-planning-and-devops-workflow.md. Those are the names the brief
+ *proposes*; the report this repository ships uses docs/18-local-runbook.md,
+ docs/05-api-catalogue.md and docs/02-agile-plan.md. A reference that does not
+ resolve is the cheapest kind of documentation defect and the most corrosive,
+ because it teaches the reader to stop following references. Fixed on the
+ release branch.
+
+ Re-run after the fix: all 19 distinct `docs/NN` shorthands used anywhere in the
+ report map to a file, and no `docs/...` path reference dangles.
 
 ================================================================================
  RESULT
@@ -197,6 +213,7 @@
  gate 2  11 smoke checks against the built container ........... PASS
  gate 3  5 Selenium journeys against the built container ........ PASS
  defects found by this verification ............................ 1 (CRFD-117b)
- stale report figures found by this verification ............... 1 (docs/07 §4)
+ stale figures found by this verification ...................... 1 (docs/07 §4)
+ unresolved references found by this verification .............. 3 (CONTRIBUTING.md)
 
- The candidate is accepted. v1.0.0 is the tree above plus the repair.
+ The candidate is accepted. v1.0.0 is the tree above plus the repairs.
