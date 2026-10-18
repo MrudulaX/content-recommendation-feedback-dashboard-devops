@@ -77,7 +77,7 @@ public class EventService {
     @Transactional
     public EventResponse ingest(EventRequest request) {
         String eventId = (request.eventId() == null || request.eventId().isBlank())
-                ? java.util.UUID.randomUUID().toString()
+                ? RecommendationEvent.newEventId()
                 : request.eventId().trim();
 
         if (events.existsByEventId(eventId)) {
