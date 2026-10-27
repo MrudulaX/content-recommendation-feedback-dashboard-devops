@@ -29,6 +29,7 @@ services:
         -Djenkins.install.runSetupWizard=false
         -Dhudson.model.DownloadService.noSignatureCheck=true
         -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=30
+        -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true
       CASC_JENKINS_CONFIG: /var/jenkins_home/casc
       JENKINS_ADMIN_ID: admin
       JENKINS_ADMIN_PASSWORD: crfd-admin

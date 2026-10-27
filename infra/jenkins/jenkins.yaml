@@ -26,22 +26,17 @@ jenkins:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
 
-  crumbIssuer:
-    standard:
-      excludeClientIPFromCrumb: true
+  # Crumb issuer deliberately left at the defaults: the historical
+  # `standard: excludeClientIPFromCrumb` attribute was removed from
+  # DefaultCrumbIssuer, and JCasC now treats an unknown attribute as a fatal
+  # boot error rather than a warning.
 
-  # The pipeline needs to shell out to Docker; nothing else is pre-installed.
-  agentProtocol: REMOTE
+  # The pipeline runs with `agent any`, so it needs no custom node labels. A
+  # permanent node called "built-in" is rejected outright - that id belongs to
+  # the controller's own node.
+
   quietPeriod: 2
   scmCheckoutRetryCount: 3
-
-  nodes:
-    - permanent:
-        name: "built-in"
-        labelString: "built-in master docker maven jdk21"
-        numExecutors: 2
-        remoteFS: "/var/jenkins_home"
-        retentionStrategy: "always"
 
   clouds:
     - docker:
@@ -53,8 +48,6 @@ jenkins:
           - labelString: "crfd-builder"
             dockerTemplateBase:
               image: "maven:3.9.9-eclipse-temurin-21"
-              volumes:
-                - "/var/run/docker.sock:/var/run/docker.sock"
             instanceCapStr: "2"
             remoteFs: "/home/jenkins/agent"
 
@@ -65,13 +58,11 @@ tool:
         home: "git"
   jdk:
     installations:
+      # Declared by local home: the image already ships Temurin 21 at this path,
+      # and the adoptOpenJdk installer that used to fetch it needs the `jdks`
+      # plugin, which is no longer published.
       - name: "JDK21"
         home: "/opt/java/openjdk"
-        properties:
-          - installSource:
-              installers:
-                - adoptOpenJdk:
-                    id: "jdk-21.0.5+11"
   maven:
     installations:
       - name: "M3"
@@ -107,8 +98,6 @@ unclassified:
   buildDiscarders:
     configuredBuildDiscarders:
       - "jobBuildDiscarder"
-  mavenModuleSet:
-    localRepository: "/var/jenkins_home/.m2/repository"
 
 jobs:
   - script: |
@@ -129,9 +118,9 @@ jobs:
         // Jenkinsfile's copy silently wins at build time - a difference that is
         // discovered at the worst possible moment.
 
-        triggers {
-          pollSCM('H/5 * * * *')
-        }
+        // No triggers{} block here: Job DSL deprecated it for pipelineJob, and
+        // the Jenkinsfile's own `triggers { pollSCM(...) }` is what Jenkins uses
+        // once the job definition is loaded from SCM.
 
         definition {
           cpsScm {

@@ -22,8 +22,12 @@ github-branch-source
 
 # --- build tooling ----------------------------------------------------------
 maven-plugin
-jdks
 ant
+# NOTE: the `jdks` plugin used to supply the adoptOpenJdk tool installer. It has
+# been withdrawn from the Jenkins update centre (404 on updates.jenkins.io), and
+# a single unresolvable name makes jenkins-plugin-cli abandon the *entire* list,
+# so the controller ended up with no plugins at all. JCasC now declares the JDK
+# tool by its local home in the image (/opt/java/openjdk) instead.
 
 # --- test reports / quality gates ------------------------------------------
 junit
@@ -36,7 +40,8 @@ coverage
 docker-workflow
 docker-plugin
 docker-commons
-cloudbees-docker-custom-build-environment
+# NOTE: cloudbees-docker-custom-build-environment is also withdrawn from the
+# update centre (404). The docker-plugin cloud below does not need it.
 
 # --- credentials / secrets --------------------------------------------------
 credentials

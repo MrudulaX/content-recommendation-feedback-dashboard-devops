@@ -211,10 +211,10 @@ pipeline {
 
                     sh 'bash scripts/wait-for-health.sh "http://crfd-app:8080/api/v1/health" 90'
 
-                    # No -p: the browser reaches the application by network alias,
-                    # and the pipeline probes it the same way. Publishing a host
-                    # port here would be misleading, since localhost inside the
-                    # Jenkins container is Jenkins, not the application.
+                    // No -p: the browser reaches the application by network alias,
+                    // and the pipeline probes it the same way. Publishing a host
+                    // port here would be misleading, since localhost inside the
+                    // Jenkins container is Jenkins, not the application.
                     sh """
                         docker run -d --name ${env.SELENIUM_CONTAINER} \
                             --network ${env.NETWORK_NAME} \
