@@ -81,9 +81,10 @@ pipeline {
     environment {
         APP_NAME         = 'content-recommendation-feedback-dashboard'
         IMAGE_NAME       = "crfd"
-        BUILD_VERSION    = sh(script: "grep -m1 '<version>' pom.xml | sed -e 's/.*<version>\\(.*\\)<\\/version>.*/\\1/'", returnStdout: true).trim()
-        GIT_SHA          = ''
-        IMAGE_TAG_RESOLVED = ''
+        // BUILD_VERSION, GIT_SHA and IMAGE_TAG_RESOLVED are computed in stage 1,
+        // not here. A declarative `environment` block is evaluated *before*
+        // `checkout scm`, so an `sh` that reads pom.xml runs in an empty
+        // workspace and the whole metadata block comes out null.
         CONTAINER_NAME   = 'crfd-app'
         NETWORK_NAME     = 'crfd-ci-net'
         DATA_VOLUME      = 'crfd-data'
@@ -99,6 +100,7 @@ pipeline {
             steps {
                 script {
                     checkout scm
+                    env.BUILD_VERSION = sh(script: "grep -m1 '<version>' pom.xml | sed -e 's/.*<version>\\(.*\\)<\\/version>.*/\\1/'", returnStdout: true).trim()
                     env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
                     env.IMAGE_TAG_RESOLVED = params.IMAGE_TAG?.trim() ? params.IMAGE_TAG.trim()
