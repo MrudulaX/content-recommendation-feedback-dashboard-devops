@@ -191,8 +191,14 @@ class DashboardJourneyIT extends SeleniumTestSupport {
         assertThat(timeline.get(1).getText()).contains("PROCESSING");
 
         // --- related alerts (the low confidence exception raised by the pipeline) ---
+        // An event can legitimately raise more than one exception: the confidence and
+        // latency rules are independent, and the latency the simulator records is
+        // random. Assert that the low-confidence alert is present, rather than that
+        // it happens to be the first row in the drawer.
         waitForAtLeast(By.cssSelector("#detail-alerts .alert-item"), 1);
-        assertThat(text(By.cssSelector("#detail-alerts .alert-item .alert-code"))).isEqualTo("LOW_CONFIDENCE");
+        assertThat(all(By.cssSelector("#detail-alerts .alert-item .alert-code")))
+                .extracting(WebElement::getText)
+                .contains("LOW_CONFIDENCE");
 
         // --- key/value details are rendered ---
         assertThat(text(By.id("detail-fields"))).contains("Correlation id").contains("Latency");
@@ -217,12 +223,14 @@ class DashboardJourneyIT extends SeleniumTestSupport {
 
         await(d -> !"Loading…".equals(d.findElement(By.id("alerts-list")).getText()));
 
-        // Read the newest OPEN exception. Every read goes through await() so that a
-        // scheduled re-render cannot detach an element mid-assertion.
-        String alertRef = await(d -> {
-            List<WebElement> items = d.findElements(By.cssSelector("#alerts-list .alert-item"));
-            return items.isEmpty() ? null : items.get(0).getAttribute("data-alert-ref");
-        });
+        // Locate this journey's low-confidence exception instead of "whatever is
+        // first": a CRITICAL latency alert raised by an earlier journey can sort
+        // above it. Every read goes through await() so that a scheduled re-render
+        // cannot detach an element mid-assertion.
+        String alertRef = await(d -> d.findElements(By.cssSelector("#alerts-list .alert-item")).stream()
+                .filter(item -> "LOW_CONFIDENCE".equals(item.findElement(By.cssSelector(".alert-code")).getText()))
+                .map(item -> item.getAttribute("data-alert-ref"))
+                .findFirst().orElse(null));
         assertThat(alertRef).isNotBlank();
 
         assertThat(fieldOf(alertRef, ".alert-code")).isEqualTo("LOW_CONFIDENCE");
