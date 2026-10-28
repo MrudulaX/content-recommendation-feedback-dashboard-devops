@@ -19,6 +19,9 @@ WORKDIR /workspace
 COPY pom.xml .
 COPY .mvn/ .mvn/
 COPY mvnw mvnw.cmd ./
+# Windows checkouts store mvnw as 100644, so the copy arrives without the exec
+# bit and every ./mvnw line below dies with "Permission denied" (exit 126).
+RUN chmod +x mvnw
 RUN ./mvnw -B -q -DskipTests dependency:go-offline -Dmaven.wagon.http.retryHandler.count=3 || true
 
 # Application layer
