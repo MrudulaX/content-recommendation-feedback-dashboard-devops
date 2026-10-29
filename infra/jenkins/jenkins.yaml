@@ -3,10 +3,18 @@
 #  Mounted at $JENKINS_HOME/casc/jenkins.yaml.
 #
 #  Reproduces, from source control:
-#    * the security realm and the admin user
 #    * the JDK 21 and Maven 3.9 tool installations the Jenkinsfile references
 #    * the Docker Hub credential placeholder used by the publish stage
 #    * the seed job that creates the CRFD pipeline from the repository
+#
+#  SECURITY IS DELIBERATELY OFF on this local demo controller. The realm and
+#  strategy below are kept, commented out, so they can be switched back on:
+#    * JCasC re-applies this file on every boot, so leaving them enabled would
+#      undo any `<useSecurity>false</useSecurity>` edit to config.xml, and
+#      leaving them out means the controller comes up with no login at all.
+#    * To restore the login: uncomment both blocks, set
+#      `<useSecurity>true</useSecurity>` in $JENKINS_HOME/config.xml, and
+#      restart the container.
 # =============================================================================
 
 jenkins:
@@ -14,17 +22,17 @@ jenkins:
   numExecutors: 2
   mode: NORMAL
 
-  securityRealm:
-    local:
-      allowsSignup: false
-      users:
-        - id: "${JENKINS_ADMIN_ID:-admin}"
-          password: "${JENKINS_ADMIN_PASSWORD:-crfd-admin}"
-          name: "CRFD Administrator"
-
-  authorizationStrategy:
-    loggedInUsersCanDoAnything:
-      allowAnonymousRead: false
+  # securityRealm:
+  #   local:
+  #     allowsSignup: false
+  #     users:
+  #       - id: "${JENKINS_ADMIN_ID:-admin}"
+  #         password: "${JENKINS_ADMIN_PASSWORD:-crfd-admin}"
+  #         name: "CRFD Administrator"
+  #
+  # authorizationStrategy:
+  #   loggedInUsersCanDoAnything:
+  #     allowAnonymousRead: false
 
   # Crumb issuer deliberately left at the defaults: the historical
   # `standard: excludeClientIPFromCrumb` attribute was removed from
