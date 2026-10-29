@@ -304,6 +304,7 @@ pipeline {
                             -e CRFD_ENVIRONMENT=${params.ENVIRONMENT} \
                             -e CRFD_SIMULATION_ENABLED=${params.ENVIRONMENT == 'production' ? 'false' : 'true'} \
                             -e CRFD_SEED_ON_STARTUP=${params.ENVIRONMENT == 'production' ? 'false' : 'true'} \
+                            -e H2_WEB_ALLOW_OTHERS=${params.ENVIRONMENT == 'production' ? 'false' : 'true'} \
                             -e CRFD_LOW_CONFIDENCE=${params.CRFD_LOW_CONFIDENCE} \
                             -e CRFD_CRITICAL_LATENCY_MS=${params.CRFD_CRITICAL_LATENCY_MS} \
                             ${env.IMAGE_NAME}:${env.IMAGE_TAG_RESOLVED}

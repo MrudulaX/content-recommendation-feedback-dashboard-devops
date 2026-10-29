@@ -33,6 +33,8 @@ services:
       CRFD_HIGH_LATENCY_MS: "500"
       CRFD_CRITICAL_LATENCY_MS: "1500"
       DB_URL: "jdbc:h2:file:/app/crfd-data/crfd;DB_CLOSE_ON_EXIT=FALSE"
+      # Lets the H2 console be opened from the host through the published port.
+      H2_WEB_ALLOW_OTHERS: "true"
       JAVA_OPTS: "-XX:MaxRAMPercentage=70 -XX:+UseContainerSupport"
     volumes:
       - crfd-data:/app/crfd-data

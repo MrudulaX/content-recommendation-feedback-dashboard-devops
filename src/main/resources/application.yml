@@ -35,6 +35,12 @@ spring:
     console:
       enabled: true
       path: /h2-console
+      settings:
+        # The console binds its own check to the request's source address. Behind
+        # Docker's published port the request arrives from the bridge gateway, so
+        # the console refuses it unless this is enabled. Default off; the demo
+        # stack and the non-production pipeline deployments switch it on.
+        web-allow-others: ${H2_WEB_ALLOW_OTHERS:false}
 
   jackson:
     serialization:
