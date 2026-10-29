@@ -112,6 +112,49 @@ real defects, all fixed on `develop` in this order:
 Failed builds #1-#7 are the iterations that found these; #5 and #6 were
 transient (a truncated `zstd-jni` download after the machine was suspended).
 
+## Later runs (29 October 2026)
+
+Three further runs confirm the pipeline is repeatable, not a one-off:
+
+| Build | Parameters | Result |
+| --- | --- | --- |
+| #9 | defaults (`ENVIRONMENT=dev`, `APP_PORT=8080`) | SUCCESS |
+| #10 | defaults (re-registration run) | SUCCESS - 32 unit/API + 5 Selenium |
+| #11 | `ENVIRONMENT=staging`, `APP_PORT=18080` | SUCCESS - `crfd:v3.3.5-11` deployed on 18080 |
+
+Build #11 archived:
+
+```
+build.version=3.3.5
+build.tag=v3.3.5-11
+build.number=11
+git.commit=90c6c82
+environment=staging
+result=SUCCESS
+image=crfd:v3.3.5-11
+```
+
+The container the pipeline created, and the product working through it:
+
+```
+crfd-app | crfd:v3.3.5-11 | Up (healthy) | 0.0.0.0:18080->8080/tcp
+
+GET  /                                  -> 200 (15,137 bytes, dashboard shell)
+POST /api/v1/events                     -> EVT-997759E9, status RECEIVED
+GET  /api/v1/events?q=ITM-DEMO-29       -> totalElements=1, status PROCESSED, latencyMs=117
+GET  /api/v1/metrics/summary            -> totalEvents=10, successRate=0.9, ctr=0.25, avgLatencyMs=164.9
+```
+
+Health at the end of #11 is `DEGRADED` with `pipelineSuccessRate: 0.8889` against
+`0.95`, again because the Selenium journeys intentionally submit rejected
+events. Readiness stays `200`; `/api/v1/health/slo` reports the breach.
+
+One operational note: JCasC re-applies the job definition on every controller
+boot, which clears the `ParametersDefinitionProperty` that a Jenkinsfile run had
+registered. The first build after a restart is therefore a plain `build` (it
+re-registers the parameters from the `Jenkinsfile`); `buildWithParameters` works
+again from the next build onwards.
+
 ## Reproduce
 
 ```bash
