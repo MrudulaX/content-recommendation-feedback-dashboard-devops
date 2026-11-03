@@ -563,6 +563,7 @@ content-recommendation-feedback-dashboard/
 | `docs/19-lab-explanation-and-demo-guide.docx` | The submitted lab explanation and demo guide (Word / PDF) |
 | `docs/20-docker-dataset-and-database-tour.md` | Docker Desktop tour, dataset and database walkthrough |
 | `docs/21-viva-briefing.md` | Viva script: what to say, what to show, Q&A, failure recovery |
+| `docs/22-viva-script.md` / `.docx` / `.pdf` | The speakable viva script, with cues, numbers and Q&A one-liners |
 
 `docs/evidence/` holds the captured run logs, screenshots and test output.
 
