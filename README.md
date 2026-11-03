@@ -384,12 +384,22 @@ The controller itself is provisioned as code — no hand-clicked setup:
 
 ```bash
 docker compose -f infra/jenkins/docker-compose.jenkins.yml up -d
-# → http://localhost:8085    (admin / crfd-admin, JCasC-configured)
+# → http://localhost:8085    (no login on this demo controller - see the note below)
 ```
 
 `infra/jenkins/jenkins.yaml` (Configuration as Code) declares the tools, the
 credentials and a seed job that builds the pipeline straight from the
 `Jenkinsfile` in the repository.
+
+**Security on this local demo controller.** The login is switched off so the
+controller can be shown without authentication: `securityRealm` and
+`authorizationStrategy` are commented out in `infra/jenkins/jenkins.yaml`, and
+`$JENKINS_HOME/config.xml` has `SecurityRealm$None`. This is a local-only
+choice - the controller is published on localhost and has no internet-facing
+exposure. To restore the login, uncomment both blocks in `jenkins.yaml`, set
+`<useSecurity>true</useSecurity>` in `config.xml`, and restart the container
+(JCasC re-applies the realm on every boot, which is why the file, not just
+`config.xml`, must be changed).
 
 Configuration and job setup walkthrough: `docs/08-jenkins-ci-job.md`.
 
@@ -550,6 +560,9 @@ content-recommendation-feedback-dashboard/
 | `docs/16-limitations-and-future-enhancements.md` | Honest limitations and future work |
 | `docs/17-troubleshooting-guide.md` | Symptoms → cause → fix |
 | `docs/18-local-runbook.md` | Step-by-step local setup |
+| `docs/19-lab-explanation-and-demo-guide.docx` | The submitted lab explanation and demo guide (Word / PDF) |
+| `docs/20-docker-dataset-and-database-tour.md` | Docker Desktop tour, dataset and database walkthrough |
+| `docs/21-viva-briefing.md` | Viva script: what to say, what to show, Q&A, failure recovery |
 
 `docs/evidence/` holds the captured run logs, screenshots and test output.
 
